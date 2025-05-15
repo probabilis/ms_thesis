@@ -5,3 +5,5 @@ out/
 *.pyc
 **/__pycache__/
 __pycache__
+data/
+data/**
