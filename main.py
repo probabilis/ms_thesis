@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import time
 from PIL import Image
 from pathlib import Path
-
+from dataclasses import dataclass
 from pattern_formation import fourier_multiplier, energy_value, fixpoint, dtype_complex, dtype_real, device
 
 
@@ -12,6 +12,26 @@ folder_path = r"out/"
 
 # -- Custom Setup Parameters --
 # -----------------------------
+
+
+@dataclass
+class DataParameters:
+    gridsize: int
+    N: int
+    initial_temperature: float
+    max_it: int 
+    tol: float
+    stop_limit: float
+    enable_logging: bool = False
+    
+
+@dataclass
+class SimulationParameters:
+    dt: float
+    max_it_fixpoint: int
+    max_it: int
+    tol: float
+    stop_limit: float
 
 
 # data parameters
@@ -25,16 +45,12 @@ epsilon = 1/20
 gamma = 1/400
 
 # simulation parameters
-# dt = 1/3000
-dt = 1/1000
 
+dt = 1/1000
 max_it_fixpoint = 50
 max_it = 200_000
-
-NUMERICAL_THRESHOLD = 1e-12
 tol = 1e-8
-
-stop_crit = 1e-12
+stop_limit = 1e-12
 
 
 x = gridsize / N * torch.arange(N, dtype=dtype_real, device=device) # position array
@@ -80,7 +96,7 @@ fig2, ax2 = plt.subplots(figsize = (10,10))
 fp_iterations = []
 
 try:
-    while ii < max_it: # energy_diff > stop_crit and
+    while ii < max_it: # energy_diff > stop_limit and
         ii_fp, u_np1, err, conv = fixpoint(u_n, L, dt, N, epsilon, gamma, max_it_fixpoint, tol, c0)
         fp_iterations.append(ii_fp)
         print("----------------")

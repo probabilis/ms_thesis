@@ -80,7 +80,7 @@ def fixpoint(U_0, L_eps, dt, N, epsilon, gamma, Nmax, tol, c0):
         error = torch.max(torch.abs(U_np1 - U_n)).item()
         
         print("error", error)
-
+        U_0 = U_n
         U_n = U_np1
         ii += 1
 
