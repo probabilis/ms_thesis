@@ -1,6 +1,6 @@
 % -- CUSTOM SET UP --
 gridsize = 1;
-N = 128; %512                   % Number of Gridpoints
+N = 512;                   % Number of Gridpoints
 dt = 1/3000;               % Time step
 c0 = 9/32;                 % Normalization constant for double well
 
@@ -175,16 +175,19 @@ while abs(Denergy) > stop_crit
         % -- Pattern visualization --
         fig = imagesc(x, x, u); colormap(gray);
         title(['time = ' num2str(time)]);
-        drawnow;
+        
         Frames(i-1) = getframe(gcf); % store frame
 
+        drawnow;
+        plot(time_vector(1:i), Energy(1,1:i));
+        drawnow;
         % -- Update values --
         u_int = u;
         time = time + dt;
         n_it = n_it + 1;
         i = i + 1;
-        disp(time)
-        saveas(fig, 'test_mat.png')
+        disp(time);
+        % saveas(fig, 'test_mat.png');
     elseif (conv == 0)
         dt = dt/4;  % reduce time step
         %if dt < 1e-12

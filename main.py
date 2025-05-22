@@ -36,17 +36,17 @@ class SimulationParameters:
 
 # data parameters
 gridsize = 1 # gridsize
-N = 1024 # nr. of grid-points
+N = 512 # nr. of grid-points
 
 c0 = 9/32 # integral constant
 
-th = 0.1 # sample parameters
+th = 1.0 # sample parameters
 epsilon = 1/20
 gamma = 1/400
 
 # simulation parameters
 
-dt = 1/1000
+dt = 1/100
 max_it_fixpoint = 50
 max_it = 200_000
 tol = 1e-8
@@ -66,7 +66,7 @@ modk = torch.sqrt(modk2)
 # -----------------------------
 # -- u0 Initialization --
 
-u0 = (torch.randn(N, N, dtype=dtype_real, device=device) )# + 1j * torch.randn(N, N, dtype=dtype_real, device=device)).to(dtype_complex)
+u0 = (torch.randn(N, N, dtype=dtype_real, device=device) ) + 1j * torch.randn(N, N, dtype=dtype_real, device=device).to(dtype_complex)
 
 #image = Image.open('input_test.png').convert('L')
 #np_array = np.array(image)
@@ -99,7 +99,7 @@ try:
     while ii < max_it: # energy_diff > stop_limit and
         ii_fp, u_np1, err, conv = fixpoint(u_n, L, dt, N, epsilon, gamma, max_it_fixpoint, tol, c0)
         fp_iterations.append(ii_fp)
-        print("----------------")
+        print(f"--------{ii}--------")
         print("Energy diff: ", energy_diff)
         if conv:
             curr_energy = energy_value(gamma, epsilon, N, u_np1, th, modk, modk2, c0)
@@ -148,6 +148,6 @@ ax2.set_yscale('log')
 
 plt.ioff()
 
-fig1.savefig(folder_path + f"image_gamma={gamma}_eps={epsilon}_dt={dt}_ii={ii}.png")
-fig2.savefig(folder_path + f"energy_gamma={gamma}_eps={epsilon}_dt={dt}_ii={ii}.png")
+fig1.savefig(folder_path + f"image_N={N}_gamma={gamma}_eps={epsilon}_dt={dt}_ii={ii}.png")
+fig2.savefig(folder_path + f"energy_N={N}_gamma={gamma}_eps={epsilon}_dt={dt}_ii={ii}.png")
 plt.show()
