@@ -1,7 +1,7 @@
 % -- CUSTOM SET UP --
 gridsize = 1;
 N = 512;                   % Number of Gridpoints
-dt = 1/3000;               % Time step
+dt = 1/100;               % Time step
 c0 = 9/32;                 % Normalization constant for double well
 
 
@@ -12,7 +12,7 @@ th = 1;                    % Thickness parameter
 Nmax = 40;                 % Max iterations for fixed point
 tol = 10^(-8);                % Tolerance for fixed point convergence
 stop_crit = 10^(-8);          % Stopping criterion for time iteration
-max_it = 50000;
+max_it = 200000;
 
 
 % -- GENERIC SET UP --
@@ -66,8 +66,8 @@ function [k, u_n, err, conv] = fixpt(u0, L, dt, N, epsilon, gamma, Nmax, tol, c0
     end
 
     k = j;
-    err = error;
     u_n = u_int2;
+    err = error;
     conv = convergence;
 end
 
@@ -77,10 +77,10 @@ function [discrete_energy_value] = energy_value(gamma, epsilon, N, u, th, modk, 
     ftu = 1 / N^2 * fft2(u);
 
     S = sigma(th * modk);
-    disp("max S");
-    disp(max(S(:)))
-    disp(min(S(:)))
-    disp(mean(S(:)))
+    %disp("max S");
+    %disp(max(S(:)))
+    %disp(min(S(:)))
+    %disp(mean(S(:)))
 
     discrete_energy_value = (gamma / epsilon) * 1 / N^2 * (sum(sum(W))) + 1/2 * sum(sum((sigma(th * modk) + gamma * epsilon * (modk2)) .* abs(ftu).^2));
 end
@@ -97,11 +97,11 @@ function sig = sigma(A)
     small = abs(A) < 1e-12;
     large = ~small;
     sig(small) = 1 - pi * abs(A(small));
-    sig(large) = 1 - (1 - exp(-2 * pi * abs(A(large)))) ./ (2 * pi * abs(A(large)));
+    sig(large) = (1 - exp(-2 * pi * abs(A(large)))) ./ (2 * pi * abs(A(large)));
 end
 
 
-function sig = sigma2(A)
+function sig = sigma_2(A)
     if (abs(A)< 1.0e-12)
         B = 1-(pi*abs(A));
     else
@@ -155,9 +155,11 @@ time_vector(1) = 0;
 [Energy(1,i)] = energy_value(gamma, epsilon, N, u0, th, modk, modk2, c0);
 i = i + 1;
 
+fig1 = figure(1);
+fig2 = figure(2);
 
 % -- TIME STEPPING LOOP --
-while abs(Denergy) > stop_crit
+while (n_it < max_it) % (abs(Denergy) > stop_crit) &&
     [k_fp, u, err, conv] = fixpt(u_int, L, dt, N, epsilon, gamma, Nmax, tol, c0);
     disp("CONV");
     disp(conv);
@@ -173,26 +175,30 @@ while abs(Denergy) > stop_crit
         time_vector(i) = time_vector(i-1) + dt;
 
         % -- Pattern visualization --
-        fig = imagesc(x, x, u); colormap(gray);
+        figure(fig1);
+        imagesc(x, x, u); colormap(gray);
         title(['time = ' num2str(time)]);
-        
+
         Frames(i-1) = getframe(gcf); % store frame
 
+        figure(fig2);
+        semilogy(time_vector(1:i), Energy(1,1:i));
+
         drawnow;
-        plot(time_vector(1:i), Energy(1,1:i));
-        drawnow;
+    
         % -- Update values --
         u_int = u;
         time = time + dt;
         n_it = n_it + 1;
         i = i + 1;
         disp(time);
-        % saveas(fig, 'test_mat.png');
+        saveas(fig1, 'test_mat_u.png');
+        saveas(fig2, 'test_mat_energy.png')
     elseif (conv == 0)
         dt = dt/4;  % reduce time step
         %if dt < 1e-12
            % savefig("test_mat.fig")
-        %    saveas('test_mat.png')
+        %    saveas('test_mat.png')a
         %    error('Time step too small. Exiting.');
         
     end

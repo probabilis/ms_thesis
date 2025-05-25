@@ -40,6 +40,7 @@ N = 512 # nr. of grid-points
 
 c0 = 9/32 # integral constant
 
+# labyrinth exercise
 th = 1.0 # sample parameters
 epsilon = 1/20
 gamma = 1/400
@@ -56,7 +57,8 @@ stop_limit = 1e-12
 x = gridsize / N * torch.arange(N, dtype=dtype_real, device=device) # position array
 
 # k = torch.fft.fftfreq(N, d=1 / N).to(device) * N  # FFT frequencies scaled
-k = torch.cat([torch.arange(0, N // 2, dtype=dtype_real, device = device),torch.arange(-N // 2, 0, dtype=dtype_real, device = device)])
+k = torch.cat([torch.arange(0, N // 2, dtype=dtype_real, device = device), 
+            torch.arange(-N // 2, 0, dtype=dtype_real, device = device)])
 
 xi, eta = torch.meshgrid(k, k, indexing='ij')
 modk2 = (xi ** 2 + eta ** 2).to(dtype_real)
@@ -74,7 +76,11 @@ u0 = (torch.randn(N, N, dtype=dtype_real, device=device) ) + 1j * torch.randn(N,
 # u0 = torch.from_numpy(np_array).float() / 255.0  # values now in [0.0, 1.0]
 # print(u0.shape)
 
-# u0 = (torch.tanh(10 * (torch.rand(N, N, dtype=dtype_real) - 0.5)) + 1j * torch.tanh(10 * (torch.rand(N, N, dtype=dtype_real) - 0.5)))
+#u0 = (torch.tanh(10 * (torch.rand(N, N, dtype=dtype_real) - 0.5)) + 1j * torch.tanh(10 * (torch.rand(N, N, dtype=dtype_real) - 0.5)))
+
+
+#x1, x2 = torch.meshgrid(x, x)
+#u0 = torch.sin(8 * torch.pi * x1) * torch.sin(8 * torch.pi * x2)
 
 # -----------------------------
 
