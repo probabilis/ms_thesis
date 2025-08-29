@@ -5,7 +5,7 @@ dt = 1/10;               % Reduced initial time step
 c0 = 9/32;                 % Normalization constant for double well
 
 % CORRECTED PARAMETERS
-epsilon = 1/20;
+epsilon = 1/22;
 gamma = 1/200;             % Changed from 1/100 to match paper
 
 th = 1.0;                    % Thickness parameter
@@ -18,6 +18,8 @@ max_it = 50000;
 % -- GENERIC SET UP --
 x = gridsize/N * (0:N-1);
 k = [0:N/2-1 -N/2:-1];     % Proper wave number vector for FFT
+
+% (2*pi/gridsize) *
 
 [xi, eta] = ndgrid(k, k);   % 2D wave numbers
 modk2 = xi.^2 + eta.^2;
@@ -116,9 +118,10 @@ perturbation = 0.01 * sin(2*pi*x1) .* cos(2*pi*x2);
 
 % CORRECTED LINEAR OPERATOR
 % Remove the (2*pi)^2 factor - it should be included in the wave numbers
+
 L = gamma * epsilon * modk2 + sigma(th * modk);
 
-(2*pi)^2
+%(2*pi)^2
 
 % Ensure proper handling of zero frequency
 L(1,1) = sigma(0);  % This should be 1
