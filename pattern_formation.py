@@ -24,10 +24,10 @@ def fourier_multiplier(A):
     
     return sig
 
+
 def double_well_potential(u, c0):
     u2 = 1 - torch.abs(u) ** 2
     return c0 * (u2 ** 2)
-
 
 
 def energy_value(gamma, epsilon, N, u, th, modk, modk2, c0):
@@ -44,10 +44,8 @@ def energy_value(gamma, epsilon, N, u, th, modk, modk2, c0):
     return energy.item()
 
 
-
 def N_eps(U_np1, U_n, epsilon, gamma, c0):
     return 2 * gamma * c0 / epsilon * (U_np1 + U_n) * (1 - (torch.abs(U_np1) ** 2 + torch.abs(U_n) ** 2) / 2)
-
 
 
 def fixpoint(U_0, L_eps, dt, N, epsilon, gamma, Nmax, tol, c0):
@@ -95,35 +93,3 @@ def fixpoint(U_0, L_eps, dt, N, epsilon, gamma, Nmax, tol, c0):
 
 
 # -------------------------------------
-
-def N_eps_v2(u, epsilon, gamma, c0):
-    return gamma * c0 / epsilon * u * (1 - torch.abs(u)**2)
-
-
-def crank_nicolson_step(u_n, L, dt, N, epsilon, gamma, c0, modk, modk2, th):
-    """
-    Crank-Nicolson semi-implicit step.
-    - u_n: current field
-    - L: linear operator
-    - dt: timestep
-    """
-    # Nonlinear term (explicit)
-    N_u_n = N_eps_v2(u_n, epsilon, gamma, c0)
-    
-    # FFT of current field and nonlinearity
-    u_n_hat = torch.fft.fft2(u_n) / (N**2)
-    N_u_n_hat = torch.fft.fft2(N_u_n) / (N**2)
-    
-    # Crank-Nicolson denominator
-    denom = 1.0 + 0.5 * dt * L
-
-    # Crank-Nicolson numerator
-    numer = u_n_hat - 0.5 * dt * (L * u_n_hat) - dt * N_u_n_hat
-
-    # Update in Fourier space
-    u_np1_hat = numer / denom
-
-    # Transform back to real space
-    u_np1 = torch.fft.ifft2(u_np1_hat * (N**2)).real
-
-    return u_np1

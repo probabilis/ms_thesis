@@ -7,6 +7,17 @@ from pattern_formation import fourier_multiplier,energy_value, dtype_real, devic
 from params import labyrinth_data_params, sim_params, get_DataParameters, get_SimulationParamters, sin_data_params
 from env_utils import get_args
 
+"""
+ToDo: 
+
+- Google Sheets 
+- Powerpoint
++ GitHub Repo
+
+- Freitag eher 14Uhr ca
+
+"""
+
 # ---------------------------------------------------------------
 
 folder_path = r"out_pgd/"
@@ -29,6 +40,7 @@ tol_newton = 1e-8       # stop tol inside prox
 # ---------------------------------------------------------------
 k = torch.cat([torch.arange(0, N // 2, dtype=dtype_real, device=device),
                torch.arange(-N // 2, 0, dtype=dtype_real, device=device)])
+
 xi, eta = torch.meshgrid(k, k, indexing='ij')
 modk2 = (xi ** 2 + eta ** 2).to(dtype_real)
 modk = torch.sqrt(modk2)
