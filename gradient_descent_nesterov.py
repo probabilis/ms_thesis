@@ -12,7 +12,7 @@ from gradient_descent_proximal import *
 # --- FISTA-like (Nesterov) proximal gradient with adaptive restart ---
 
 plotting_style()
-folder_path = r"out_nesterov/"
+folder_path = r"out/nesterov/"
 
 args = get_args()
 LIVE_PLOT = args.live_plot

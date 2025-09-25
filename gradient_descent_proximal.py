@@ -10,7 +10,7 @@ from env_utils import get_args, plotting_style
 # ---------------------------------------------------------------
 
 plotting_style()
-folder_path = r"out_pgd/"
+folder_path = r"out/pgd/"
 
 # ---------------------------------------------------------------
 # --- parameters ---
