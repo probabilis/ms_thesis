@@ -1,8 +1,14 @@
 import os
 import argparse
 import torch
+import matplotlib.pyplot as plt
 
 term_size = os.get_terminal_size()
+
+
+def plotting_style():
+    plt.style.use('classic')
+
 
 class bcolors:
     """

@@ -3,11 +3,13 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 from scipy.ndimage import gaussian_filter
 
-from pattern_formation import fourier_multiplier, energy_value, dtype_complex, dtype_real, device
+from pattern_formation import fourier_multiplier, energy_value, dtype_complex, dtype_real, device, double_well_prime, double_well_potential
 #from params import labyrinth_data_params, sim_params, get_DataParameters, get_SimulationParamters, sin_data_params
 from main import initialize_u0_random
-from env_utils import get_args
+from env_utils import get_args, plotting_style
 
+
+plotting_style()
 folder_path = r"out_gd/"
 
 # -----------------------------------------------------
@@ -24,7 +26,6 @@ c0 = 9/32
 #alpha = 1e-8 # learning rate
 num_iter = 2_000_000
 
-
 #k = np.concatenate([np.arange(0, N // 2), np.arange(-N // 2, 0)])
 k = torch.cat([torch.arange(0, N // 2, dtype=dtype_real, device = device), torch.arange(-N // 2, 0, dtype=dtype_real, device = device)])
 xi, eta = torch.meshgrid(k, k, indexing='ij')
@@ -34,13 +35,6 @@ modk = torch.sqrt(modk2).to(dtype_real)
 
 # -----------------------------------------------------
 
-
-def double_well_potential(u, c0):
-    u2 = 1 - torch.abs(u) ** 2
-    return c0 * (u2 ** 2)
-
-def double_well_prime(u, c0):
-    return -4.0 * c0 * u * (1.0 - u*u)
 
 
 def laplacian(u, dx):
@@ -52,7 +46,12 @@ def laplacian(u, dx):
 
 def backtracking_autograd(u, energy_fn, alpha_init=1e-2, beta=0.5, c=1e-4, max_back=40, verbose=False):
     """
-    Autograd-based backtracking line search that computes grad = grad(energy_fn)(u)
+    Autograd-based backtracking line search that computes 
+    
+    grad = grad(energy_fn)(u)
+    # implemented as: 
+    # E_[i+1] <= (E_[i]- c * alpha * g_norm2)
+    
     Returns: (u_new, E_new_float, alpha_used, grad_tensor)
     """
     # make a detached clone that requires grad
@@ -79,6 +78,8 @@ def backtracking_autograd(u, energy_fn, alpha_init=1e-2, beta=0.5, c=1e-4, max_b
             alpha *= beta
             continue
         E_try_val = float(E_try.detach().cpu().item())
+
+        # E_[i+1] <= (E_[i]- c * alpha * g_norm2)
         if E_try_val <= E_curr_val - c * alpha * g_norm2:
             if verbose: print(f" backtrack success at {i} alpha={alpha:.2e} E_curr={E_curr_val:.6e} E_new={E_try_val:.6e}")
             return u_try, E_try_val, alpha, grad
@@ -93,7 +94,7 @@ def backtracking_autograd(u, energy_fn, alpha_init=1e-2, beta=0.5, c=1e-4, max_b
     return u.clone().detach(), E_curr_val, alpha, grad
 
 
-def energy_tensor(u, gamma, epsilon, N, th, modk, modk2, c0, sigma_k):
+def energy_tensor(u, gamma, epsilon, N, th, modk, modk2, c0, sigma_k): 
     # returns a torch scalar (not .item()), matching your energy_value implementation
     # NB: keep operations in torch (no .item())
     W = double_well_potential(u, c0)                    # tensor

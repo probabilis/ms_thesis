@@ -30,6 +30,10 @@ def double_well_potential(u, c0):
     return c0 * (u2 ** 2)
 
 
+def double_well_prime(u, c0):
+    return -4.0 * c0 * u * (1.0 - u*u)
+
+
 def energy_value(gamma, epsilon, N, u, th, modk, modk2, c0):
     W = double_well_potential(u, c0)
     ftu = torch.fft.fft2(u) / (N ** 2)

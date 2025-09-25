@@ -12,13 +12,13 @@ from scipy.ndimage import gaussian_filter
 from pattern_formation import fourier_multiplier, energy_value, fixpoint, dtype_complex, dtype_real, device
 from params import labyrinth_data_params, sim_params, get_DataParameters, get_SimulationParamters, sin_data_params
 
-from env_utils import get_args
+from env_utils import get_args, plotting_style
 
 
 # ---------------------------------------------------------------
 
+plotting_style()
 folder_path = r"out/"
-plt.style.use('classic')
 
 # ---------------------------------------------------------------
 
