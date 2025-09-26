@@ -3,7 +3,7 @@ from dataclasses import dataclass, replace, asdict
 from typing import Optional
 import os
 from env_utils import term_size, bcolors
-
+from pattern_formation import define_spaces
 
 
 def print_data_class(dataclass_instance):

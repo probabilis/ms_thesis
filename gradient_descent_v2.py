@@ -1,0 +1,144 @@
+import torch
+from tqdm import tqdm
+import matplotlib.pyplot as plt
+from scipy.ndimage import gaussian_filter
+
+from pattern_formation import *
+from main import initialize_u0_random
+from env_utils import get_args, plotting_style
+
+from params import labyrinth_data_params, sim_params, get_DataParameters, get_SimulationParamters, sin_data_params
+
+
+plotting_style()
+folder_path = r"out/gd/"
+
+# ---------------------------------------------------------------
+
+def backtracking_autograd(u, energy_fn, alpha_init=1e-2, beta=0.5, c=1e-4, max_back=40, verbose=False):
+    """
+    Autograd-based backtracking line search that computes 
+    
+    grad = grad(energy_fn)(u)
+    # implemented as: 
+    # E_[i+1] <= (E_[i]- c * alpha * g_norm2)
+    
+    Returns: (u_new, E_new_float, alpha_used, grad_tensor)
+    """
+    # make a detached clone that requires grad
+    u_var = u.clone().detach().requires_grad_(True)
+
+    E_curr = energy_fn(u_var)
+    # compute gradient via autograd
+    E_curr.backward()
+    grad = u_var.grad.detach().clone()
+
+    g_norm2 = float(torch.sum(grad * grad).cpu().item().real)
+
+    alpha = alpha_init
+    E_curr_val = float(E_curr.detach().cpu().item())
+
+    for i in range(max_back):
+        u_try = (u - alpha * grad).detach()   # note we step from original u, not u_var
+        E_try = energy_fn(u_try)
+        # if not finite, shrink and continue
+        if not torch.isfinite(E_try):
+            if verbose: print(f" backtrack {i}: E_try not finite, alpha -> {alpha*beta:.2e}")
+            alpha *= beta
+            continue
+        E_try_val = float(E_try.detach().cpu().item())
+
+        # E_[i+1] <= (E_[i]- c * alpha * g_norm2)
+        if E_try_val <= E_curr_val - c * alpha * g_norm2:
+            if verbose: print(f" backtrack success at {i} alpha={alpha:.2e} E_curr={E_curr_val:.6e} E_new={E_try_val:.6e}")
+            return u_try, E_try_val, alpha, grad
+        # shrink alpha
+        if verbose and i < 4:
+            print(f" backtrack {i}: alpha={alpha:.2e} E_try={E_try_val:.6e} need <= {E_curr_val - c*alpha*g_norm2:.6e}")
+        alpha *= beta
+
+    # fail-safe: return original u (or last try)
+    if verbose:
+        print(" backtracking failed; returning original u")
+    return u.clone().detach(), E_curr_val, alpha, grad
+
+
+# ---------------------------------------------------------------
+
+if __name__ == "__main__":
+
+    args = get_args()
+    LIVE_PLOT = args.live_plot
+    DATA_LOG = args.data_log
+
+    gridsize = 1.0
+    N = 32
+    h = gridsize / N
+    th = 1
+
+    epsilon = 1/20
+    gamma = 1/200
+    c0 = 9/32
+
+    num_iter = 2_000_000
+
+    x, k, modk, modk2 = define_spaces(gridsize, N)
+    sigma_k = fourier_multiplier(modk)
+    M_k = sigma_k + gamma * epsilon * modk2  # (S + γ ε |k|^2)
+    u = initialize_u0_random(N)
+
+    Ls = float(M_k.max().cpu().item())
+    alpha = 1e-5 / Ls   # conservative
+    print("Initial alpha: ", alpha)
+
+    energies = []
+
+
+    fig1, ax1 = plt.subplots(1,1)
+    fig2, ax2 = plt.subplots(1,1)
+    plt.ion()
+
+    try:
+        # -- Gradient descent looop --
+        for n in tqdm(range(num_iter)):
+
+            u_new, E_new, alpha_used, grad = backtracking_autograd(
+                u, 
+                lambda v: energy_tensor(v, gamma, epsilon, N, th, modk, modk2, c0, sigma_k),
+                alpha_init=1e-3,
+                beta=0.5, c=1e-4, max_back=40, verbose=(n%1000==0)
+            )
+            u = u_new
+            E = E_new
+            energies.append(E)
+
+            if LIVE_PLOT and (n % 10_000) == 0:
+                ax1.clear()
+                ax2.clear()
+                #print(f"Iteration {n}")
+                ax1.imshow(u.real, cmap='gray',extent=(0, 1, 0, 1))
+                ax1.set_title(f"Iteration {n}")
+                fig1.savefig(folder_path + f"image_graddescent_N={N}_nmax={num_iter}_alpha={alpha}_gamma={gamma}_eps={epsilon}.png")
+                
+                ax2.plot(torch.arange(0,len(energies), 1), energies)
+                #ax2.set_yscale('log')
+
+                ax2.set_title("energy evolution")
+                fig2.savefig(folder_path + f"energy_graddescent_N={N}_nmax={num_iter}_alpha={alpha}_gamma={gamma}_eps={epsilon}.png")
+                
+                plt.pause(0.1)
+
+
+    except KeyboardInterrupt:
+        print("Exit.")  
+
+
+    ax1.imshow(u.real, cmap='gray',extent=(0, 1, 0, 1))
+    ax1.set_title(f"Iteration {n}")
+    fig1.savefig(folder_path + f"image_graddescent_N={N}_nmax={num_iter}_alpha={alpha}_gamma={gamma}_eps={epsilon}.png")
+
+    ax2.plot(torch.arange(0,len(energies), 1), energies)
+    #ax2.set_yscale('log')
+
+    ax2.set_title("energy evolution")
+    fig2.savefig(folder_path + f"energy_graddescent_N={N}_nmax={num_iter}_alpha={alpha}_gamma={gamma}_eps={epsilon}.png")
