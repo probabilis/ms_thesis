@@ -4,22 +4,17 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 from dataclasses import asdict
 
-from pattern_formation import fourier_multiplier,energy_value, dtype_real, device
+from pattern_formation import fourier_multiplier,energy_value, dtype_real, device, initialize_u0_random, define_spaces, grad_g
+from gradient_descent_proximal import prox_h
 from params import labyrinth_data_params, get_DataParameters, get_SimulationParamters
 from params import pgd_sim_params as ngd_sim_params
-from env_utils import get_args, plotting_style
+from env_utils import PATHS, get_args, plotting_style, plotting_schematic
 
-from gradient_descent_proximal import *
-
-
-# --- FISTA-like (Nesterov) proximal gradient with adaptive restart ---
-plotting_style()
-folder_path = r"out/nesterov/"
 
 # ---------------------------------------------------------------
 
-
 def gradient_descent_nesterov(u, LIVE_PLOT, DATA_LOG, gridsize, N, th, gamma, epsilon, tau, c0, num_iters, prox_newton_iters, tol_newton):
+    # --- FISTA-like (Nesterov) proximal gradient with adaptive restart ---
 
     # Initialize momentum variables
     u_prev = u.clone()           # u^{k-1}
@@ -88,8 +83,8 @@ def gradient_descent_nesterov(u, LIVE_PLOT, DATA_LOG, gridsize, N, th, gamma, ep
                     t_curr = 1.0
                     beta = 0.0
                     # recompute plain prox-step: v_plain = u_curr - tau * grad_g(u_curr)
-                    v_plain = u_curr - tau * grad_g(u_curr)
-                    u_next = prox_h(v_plain, tau)
+                    v_plain = u_curr - tau * grad_g(u_curr, M_k)
+                    u_next = prox_h(v_plain, tau, gamma, epsilon,c0, prox_newton_iters, tol_newton)
                     try:
                         E_next = energy_value(gamma, epsilon, N, u_next, th, modk, modk2, c0)
                     except Exception:
@@ -110,8 +105,10 @@ def gradient_descent_nesterov(u, LIVE_PLOT, DATA_LOG, gridsize, N, th, gamma, ep
 
             # live plotting (occasional)
             if (n % 1000) == 0 and LIVE_PLOT:
+                
                 ax1.clear()
                 ax2.clear()
+                """
                 ax1.imshow(u_curr.cpu().numpy(), cmap='gray', extent=(0,1,0,1))
                 ax1.set_title(f"Iteration {n}")
                 fig1.savefig(folder_path + f"image_graddescent_nesterov_N={N}_nmax={num_iters}_gamma={gamma}_eps={epsilon}.png")
@@ -120,19 +117,43 @@ def gradient_descent_nesterov(u, LIVE_PLOT, DATA_LOG, gridsize, N, th, gamma, ep
                 ax2.set_title("energy evolution")
                 fig2.savefig(folder_path + f"energy_graddescent_nesterov_N={N}_nmax={num_iters}_gamma={gamma}_eps={epsilon}.png")
                 plt.pause(1)
+                """
 
+                plotting_schematic(folder_path, ax1, fig1, ax2, fig2, u_curr, energies, N, num_iters, gamma, epsilon, n)
+                plt.pause(1)
+        
         plt.ioff()
+
+
 
     except KeyboardInterrupt:
         print("Exit.")
+        if DATA_LOG:
+            print("yes")
+            ax1.imshow(u_curr.cpu().numpy(), cmap='gray', extent=(0,1,0,1))
+            ax1.set_title(f"Iteration {n}")
+            fig1.savefig(folder_path / f"image_graddescent_nesterov_N={N}_nmax={num_iters}_gamma={gamma}_eps={epsilon}.png")
+            ax2.plot(torch.arange(0,len(energies)), energies)
 
+            ax2.set_title("energy evolution")
+            fig2.savefig(folder_path / f"energy_graddescent_nesterov_N={N}_nmax={num_iters}_gamma={gamma}_eps={epsilon}.png")
+            plt.pause(1)
+
+# ---------------------------------------------------------------
 
 if __name__ == "__main__":
+
+    plotting_style()
+    folder_path = PATHS.PATH_NESTEROV
+
     args = get_args()
     LIVE_PLOT = args.live_plot
     DATA_LOG = args.data_log
 
     gridsize, N, th, epsilon, gamma = get_DataParameters(labyrinth_data_params)
     u = initialize_u0_random(N, REAL = True)
+    
+    print(labyrinth_data_params)
+    print(ngd_sim_params)
 
     gradient_descent_nesterov(u, LIVE_PLOT, DATA_LOG,**asdict(labyrinth_data_params),**asdict(ngd_sim_params) )

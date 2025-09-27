@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 from env_utils import tensor_type
-
+from PIL import Image
 
 # ------------------------------------------------------------------
 # torch related
@@ -95,6 +95,15 @@ def initialize_u0_sin(N, x, noise_level = 0.01):
 
     u0 = torch.sin(8 * torch.pi * x1) * torch.sin(8 * torch.pi * x2)
     return u0
+
+# ------------------------------------------------------------------
+
+def grad_g(u, M_k):
+    # gradient of g(u) via spectral multiplication
+    Fu = fft2_real(u)          
+    grad_hat = M_k * Fu
+    grad_real = ifft2_real(grad_hat)
+    return grad_real
 
 # ------------------------------------------------------------------
 

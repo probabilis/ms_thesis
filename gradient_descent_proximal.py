@@ -6,23 +6,10 @@ from dataclasses import asdict
 
 from pattern_formation import *
 from params import labyrinth_data_params, pgd_sim_params, get_DataParameters
-from env_utils import get_args, plotting_style
+from env_utils import PATHS, get_args, plotting_style
+
 
 # ---------------------------------------------------------------
-
-plotting_style()
-folder_path = r"out/pgd/"
-
-# ---------------------------------------------------------------
-
-
-def grad_g(u, M_k):
-    # gradient of g(u) via spectral multiplication
-    Fu = fft2_real(u)          
-    grad_hat = M_k * Fu
-    grad_real = ifft2_real(grad_hat)
-    return grad_real
-
 
 def prox_h(v, tau, gamma, eps, c0,maxiter, tol):
     # --- proximal operator for h(x) = (gamma/epsilon) * c0 * (1 - x^2)^2 ---
@@ -62,6 +49,7 @@ def prox_h(v, tau, gamma, eps, c0,maxiter, tol):
 
     return x
 
+# ---------------------------------------------------------------
 
 def gradient_descent_proximal(u, LIVE_PLOT, DATA_LOG, gridsize, N, th, gamma, epsilon, tau, c0, num_iters, prox_newton_iters, tol_newton):
 
@@ -70,9 +58,6 @@ def gradient_descent_proximal(u, LIVE_PLOT, DATA_LOG, gridsize, N, th, gamma, ep
 
     sigma_k = fourier_multiplier(th * modk).to(dtype_real).to(device)
     M_k = sigma_k + gamma * epsilon * modk2 # M_k multiplier for the quadratic term
-
-    
-
 
     # --- main proximal-gradient loop ---
     energies = []
@@ -125,9 +110,13 @@ def gradient_descent_proximal(u, LIVE_PLOT, DATA_LOG, gridsize, N, th, gamma, ep
         ax2.set_title("energy evolution")
         fig2.savefig(folder_path + f"energy_graddescent_N={N}_nmax={num_iters}_alpha={tol_newton}_gamma={gamma}_eps={epsilon}.png")
 
+# ---------------------------------------------------------------
 
 if __name__ == "__main__":
 
+    plotting_style()
+    folder_path = PATHS.PATH_PGD
+    
     args = get_args()
     LIVE_PLOT = args.live_plot
     DATA_LOG = args.data_log

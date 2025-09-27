@@ -1,10 +1,11 @@
 
 from dataclasses import dataclass, replace, asdict
-from typing import Optional
+from typing import Optional, Union
 import os
 from env_utils import term_size, bcolors
 from pattern_formation import define_spaces
 
+# ----------------------------------------- #
 
 def print_data_class(dataclass_instance):
     print('─' * term_size.columns) 
@@ -23,7 +24,7 @@ class DataParameters:
 
 
 @dataclass
-class SimulationParameters:
+class CN_SimulationParameters:
     dt: float
     max_it_fixpoint: int
     max_it: int
@@ -49,7 +50,7 @@ class GD_SimulationParameters:
 
 
 def get_DataParameters(dp : Optional[DataParameters]):
-    print_data_class(dp)
+    #print_data_class(dp)
     gridsize = dp.gridsize
     N = dp.N
     th = dp.th
@@ -58,8 +59,8 @@ def get_DataParameters(dp : Optional[DataParameters]):
 
     return gridsize, N, th, epsilon, gamma
 
-def get_SimulationParamters(sp : Optional[SimulationParameters]):
-    print_data_class(sp)
+def get_SimulationParamters(sp : Optional[Union[CN_SimulationParameters,GD_SimulationParameters,PGD_SimulationParameters]]):
+    #print_data_class(sp)
     dt = sp.dt
     max_it_fixpoint = sp.max_it_fixpoint
     max_it = sp.max_it
@@ -80,8 +81,14 @@ epsilon = 1/20,
 gamma = 1/200
 )
 
+# Sinus initial config data params
+sin_data_params = replace(labyrinth_data_params, gamma = 1/50)
+
+# ----------------------------------------- #
 # Simulation params
-sim_params = SimulationParameters(
+
+# Crank Nicolson
+cn_sim_params = CN_SimulationParameters(
 dt = 1/10,
 max_it_fixpoint = 40,
 max_it = 50_000,
@@ -90,8 +97,11 @@ stop_limit = 1e-8,
 c0 = 9/32
 )
 
-# Sinus initial config data params
-sin_data_params = replace(labyrinth_data_params, gamma = 1/50)
+# Gradient Descent params
+gd_sim_params = GD_SimulationParameters(
+num_iters = 200_000,
+c0 = 9/32
+)
 
 # PGD sim params
 pgd_sim_params = PGD_SimulationParameters(
@@ -101,10 +111,6 @@ prox_newton_iters = 20,  # iterations for prox Newton
 tol_newton = 1e-8,       # stop tol inside prox
 c0 = 9/32)
 
-gd_sim_params = GD_SimulationParameters(
-num_iters = 200_000,
-c0 = 9/32
-)
 
 # ----------------------------------------- #
 

@@ -2,13 +2,29 @@ import os
 import argparse
 import torch
 import matplotlib.pyplot as plt
+from pathlib import Path 
 
-term_size = os.get_terminal_size()
+# ---------------------------------------------------------------
+
+class PATHS:
+
+    _BASE = Path() / 'out'
+    
+    PATH_CN = _BASE / 'cn'
+    PATH_GD = _BASE / 'gd'
+    PATH_PGD = _BASE / 'pgd'
+    PATH_NESTEROV = _BASE / 'nesterov'
+
+# ---------------------------------------------------------------
 
 
 def plotting_style():
     plt.style.use('classic')
 
+
+# ---------------------------------------------------------------
+
+term_size = os.get_terminal_size()
 
 class bcolors:
     """
@@ -25,8 +41,21 @@ class bcolors:
     UNDERLINE = '\033[4m'
 
 
-def plotting_u_and_energy(u, energies):
+def plotting_schematic(folder_path, ax1, fig1, ax2, fig2, u, energies, N, num_iters, gamma, epsilon, ii):
+
+    #plt.rc('text', usetex=True)
+    #plt.rc('font', family='serif')
+
+    ax1.imshow(u.cpu().numpy(), cmap='gray', extent=(0,1,0,1))
+    ax1.set_title(f"Iteration {ii}")
+    fig1.savefig(folder_path / f"image_graddescent_nesterov_N={N}_nmax={num_iters}_gamma={gamma}_eps={epsilon}.png")
+    ax2.plot(torch.arange(0,len(energies)), energies)
+
+    ax2.set_title("energy evolution")
+    fig2.savefig(folder_path / f"energy_graddescent_nesterov_N={N}_nmax={num_iters}_gamma={gamma}_eps={epsilon}.png")
+
     return None
+
 
 def tensor_type(x):
     print("Is float : ",isinstance(x,torch.FloatTensor) )

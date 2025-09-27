@@ -5,13 +5,10 @@ from scipy.ndimage import gaussian_filter
 from dataclasses import asdict
 
 from pattern_formation import *
-from env_utils import get_args, plotting_style
+from env_utils import PATHS, get_args, plotting_style
 
 from params import labyrinth_data_params, sim_params, get_DataParameters, get_SimulationParamters, gd_sim_params
 
-
-plotting_style()
-folder_path = r"out/gd/"
 
 # ---------------------------------------------------------------
 
@@ -62,9 +59,7 @@ def backtracking_autograd(u, energy_fn, alpha_init=1e-2, beta=0.5, c=1e-4, max_b
         print(" backtracking failed; returning original u")
     return u.clone().detach(), E_curr_val, alpha, grad
 
-
 # ---------------------------------------------------------------
-
 
 def gradient_descent_backtracking(u, LIVE_PLOT, DATA_LOG, gridsize, N, th, gamma, epsilon, c0, num_iters):
 
@@ -128,9 +123,13 @@ def gradient_descent_backtracking(u, LIVE_PLOT, DATA_LOG, gridsize, N, th, gamma
     ax2.set_title("energy evolution")
     fig2.savefig(folder_path + f"energy_graddescent_N={N}_nmax={num_iters}_alpha={alpha}_gamma={gamma}_eps={epsilon}.png")
 
+# ---------------------------------------------------------------
 
 if __name__ == "__main__":
-
+    
+    plotting_style()
+    folder_path = PATHS.PATH_GD
+    
     args = get_args()
     LIVE_PLOT = args.live_plot
     DATA_LOG = args.data_log
