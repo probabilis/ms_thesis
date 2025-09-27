@@ -2,9 +2,10 @@ import torch
 import numpy as np
 from tqdm import tqdm
 import matplotlib.pyplot as plt
+from dataclasses import asdict
 
-from pattern_formation import fourier_multiplier,energy_value, dtype_real, device
-from params import labyrinth_data_params, sim_params, get_DataParameters, get_SimulationParamters, sin_data_params
+from pattern_formation import *
+from params import labyrinth_data_params, pgd_sim_params, get_DataParameters
 from env_utils import get_args, plotting_style
 
 # ---------------------------------------------------------------
@@ -13,49 +14,9 @@ plotting_style()
 folder_path = r"out/pgd/"
 
 # ---------------------------------------------------------------
-# --- parameters ---
-
-L = 1.0
-N = 512               
-epsilon = 1/20
-gamma = 1/200
-c0 = 9/32
-
-tau = 5e-3              # proximal gradient step size
-num_iters = 100_000     # total iterations
-prox_newton_iters = 20  # iterations for prox Newton
-tol_newton = 1e-8       # stop tol inside prox
 
 
-# ---------------------------------------------------------------
-k = torch.cat([torch.arange(0, N // 2, dtype=dtype_real, device=device),
-               torch.arange(-N // 2, 0, dtype=dtype_real, device=device)])
-
-xi, eta = torch.meshgrid(k, k, indexing='ij')
-modk2 = (xi ** 2 + eta ** 2).to(dtype_real)
-modk = torch.sqrt(modk2)
-th = 1.0
-
-sigma_k = fourier_multiplier(th * modk).to(dtype_real).to(device)
-
-M_k = sigma_k + gamma * epsilon * modk2 # M_k multiplier for the quadratic term
-
-def initialize_u0_random(N):
-    amplitude = 0.1
-    u0 = amplitude * (2 * torch.rand(N, N, dtype=dtype_real, device=device) - 1) 
-    #+ amplitude * 1j * (2*torch.rand(N, N, dtype=dtype_real, device=device) - 1)
-    return u0
-
-u = initialize_u0_random(N)
-
-def fft2_real(x):
-    return torch.fft.fft2(x)
-
-def ifft2_real(x_hat):
-    return torch.fft.ifft2(x_hat).real
-
-
-def grad_g(u):
+def grad_g(u, M_k):
     # gradient of g(u) via spectral multiplication
     Fu = fft2_real(u)          
     grad_hat = M_k * Fu
@@ -63,7 +24,7 @@ def grad_g(u):
     return grad_real
 
 
-def prox_h(v, tau, gamma=gamma, eps=epsilon, c0=c0,maxiter=prox_newton_iters, tol=tol_newton):
+def prox_h(v, tau, gamma, eps, c0,maxiter, tol):
     # --- proximal operator for h(x) = (gamma/epsilon) * c0 * (1 - x^2)^2 ---
     # via vectorized Newton method, returns prox evaluated elementwise
     # Ref.: https://stackoverflow.com/questions/30191851/vectorize-a-newton-method-in-python-numpy
@@ -101,11 +62,17 @@ def prox_h(v, tau, gamma=gamma, eps=epsilon, c0=c0,maxiter=prox_newton_iters, to
 
     return x
 
-if __name__ == "__main__":
 
-    args = get_args()
-    LIVE_PLOT = args.live_plot
-    DATA_LOG = args.data_log
+def gradient_descent_proximal(u, LIVE_PLOT, DATA_LOG, gridsize, N, th, gamma, epsilon, tau, c0, num_iters, prox_newton_iters, tol_newton):
+
+
+    x, k, modk, modk2 = define_spaces(gridsize, N)
+
+    sigma_k = fourier_multiplier(th * modk).to(dtype_real).to(device)
+    M_k = sigma_k + gamma * epsilon * modk2 # M_k multiplier for the quadratic term
+
+    
+
 
     # --- main proximal-gradient loop ---
     energies = []
@@ -117,12 +84,11 @@ if __name__ == "__main__":
         for n in tqdm(range(num_iters)):
 
             # forward step (gradient of smooth part)
-            ggrad = grad_g(u)     
+            ggrad = grad_g(u, M_k)     
             v = u - tau * ggrad
 
             # backward/prox step: solve pointwise prox
-            u = prox_h(v, tau)
-
+            u = prox_h(v, tau, gamma=gamma, eps=epsilon, c0=c0,maxiter=prox_newton_iters, tol=tol_newton)
 
             # u = torch.clamp(u, -10.0, 10.0) # keep u within reasonable bounds to avoid blowup
             try:
@@ -158,3 +124,21 @@ if __name__ == "__main__":
 
         ax2.set_title("energy evolution")
         fig2.savefig(folder_path + f"energy_graddescent_N={N}_nmax={num_iters}_alpha={tol_newton}_gamma={gamma}_eps={epsilon}.png")
+
+
+if __name__ == "__main__":
+
+    args = get_args()
+    LIVE_PLOT = args.live_plot
+    DATA_LOG = args.data_log
+
+
+    # --- parameters ---
+
+    gridsize, N, th, epsilon, gamma = get_DataParameters(labyrinth_data_params)
+    u = initialize_u0_random(N, REAL = True)
+    # ---------------------------------------------------------------
+
+    gradient_descent_proximal(u, LIVE_PLOT, DATA_LOG,**asdict(labyrinth_data_params),**asdict(pgd_sim_params))
+
+

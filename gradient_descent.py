@@ -2,12 +2,12 @@ import torch
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 from scipy.ndimage import gaussian_filter
+from dataclasses import asdict
 
 from pattern_formation import *
-from main import initialize_u0_random
 from env_utils import get_args, plotting_style
 
-from params import labyrinth_data_params, sim_params, get_DataParameters, get_SimulationParamters, sin_data_params
+from params import labyrinth_data_params, sim_params, get_DataParameters, get_SimulationParamters, gd_sim_params
 
 
 plotting_style()
@@ -65,28 +65,13 @@ def backtracking_autograd(u, energy_fn, alpha_init=1e-2, beta=0.5, c=1e-4, max_b
 
 # ---------------------------------------------------------------
 
-if __name__ == "__main__":
 
-    args = get_args()
-    LIVE_PLOT = args.live_plot
-    DATA_LOG = args.data_log
-
-    gridsize = 1.0
-    N = 32
-    h = gridsize / N
-    th = 1
-
-    epsilon = 1/20
-    gamma = 1/200
-    c0 = 9/32
-
-    num_iter = 2_000_000
+def gradient_descent_backtracking(u, LIVE_PLOT, DATA_LOG, gridsize, N, th, gamma, epsilon, c0, num_iters):
 
     x, k, modk, modk2 = define_spaces(gridsize, N)
     sigma_k = fourier_multiplier(modk)
     M_k = sigma_k + gamma * epsilon * modk2  # (S + γ ε |k|^2)
-    u = initialize_u0_random(N)
-
+    
     Ls = float(M_k.max().cpu().item())
     alpha = 1e-5 / Ls   # conservative
     print("Initial alpha: ", alpha)
@@ -100,7 +85,7 @@ if __name__ == "__main__":
 
     try:
         # -- Gradient descent looop --
-        for n in tqdm(range(num_iter)):
+        for n in tqdm(range(num_iters)):
 
             u_new, E_new, alpha_used, grad = backtracking_autograd(
                 u, 
@@ -118,13 +103,13 @@ if __name__ == "__main__":
                 #print(f"Iteration {n}")
                 ax1.imshow(u.real, cmap='gray',extent=(0, 1, 0, 1))
                 ax1.set_title(f"Iteration {n}")
-                fig1.savefig(folder_path + f"image_graddescent_N={N}_nmax={num_iter}_alpha={alpha}_gamma={gamma}_eps={epsilon}.png")
+                fig1.savefig(folder_path + f"image_graddescent_N={N}_nmax={num_iters}_alpha={alpha}_gamma={gamma}_eps={epsilon}.png")
                 
                 ax2.plot(torch.arange(0,len(energies), 1), energies)
                 #ax2.set_yscale('log')
 
                 ax2.set_title("energy evolution")
-                fig2.savefig(folder_path + f"energy_graddescent_N={N}_nmax={num_iter}_alpha={alpha}_gamma={gamma}_eps={epsilon}.png")
+                fig2.savefig(folder_path + f"energy_graddescent_N={N}_nmax={num_iters}_alpha={alpha}_gamma={gamma}_eps={epsilon}.png")
                 
                 plt.pause(0.1)
 
@@ -135,10 +120,25 @@ if __name__ == "__main__":
 
     ax1.imshow(u.real, cmap='gray',extent=(0, 1, 0, 1))
     ax1.set_title(f"Iteration {n}")
-    fig1.savefig(folder_path + f"image_graddescent_N={N}_nmax={num_iter}_alpha={alpha}_gamma={gamma}_eps={epsilon}.png")
+    fig1.savefig(folder_path + f"image_graddescent_N={N}_nmax={num_iters}_alpha={alpha}_gamma={gamma}_eps={epsilon}.png")
 
     ax2.plot(torch.arange(0,len(energies), 1), energies)
     #ax2.set_yscale('log')
 
     ax2.set_title("energy evolution")
-    fig2.savefig(folder_path + f"energy_graddescent_N={N}_nmax={num_iter}_alpha={alpha}_gamma={gamma}_eps={epsilon}.png")
+    fig2.savefig(folder_path + f"energy_graddescent_N={N}_nmax={num_iters}_alpha={alpha}_gamma={gamma}_eps={epsilon}.png")
+
+
+if __name__ == "__main__":
+
+    args = get_args()
+    LIVE_PLOT = args.live_plot
+    DATA_LOG = args.data_log
+
+    gridsize, N, th, epsilon, gamma = get_DataParameters(labyrinth_data_params)
+    u = initialize_u0_random(N)
+
+    gradient_descent_backtracking(u, LIVE_PLOT, DATA_LOG, **asdict(labyrinth_data_params), **asdict(gd_sim_params))
+
+
+    

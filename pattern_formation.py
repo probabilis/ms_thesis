@@ -9,6 +9,13 @@ dtype_real = torch.float64
 dtype_complex = torch.complex128
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
+# ------------------------------------------------------------------
+
+def fft2_real(x):
+    return torch.fft.fft2(x)
+
+def ifft2_real(x_hat):
+    return torch.fft.ifft2(x_hat).real
 
 # ------------------------------------------------------------------
 
@@ -41,8 +48,6 @@ def laplacian(u, dx):
 
 # ------------------------------------------------------------------
 
-
-
 def define_spaces(gridsize, N):
     x = gridsize / N * torch.arange(N, dtype=dtype_real, device=device) # position array
     
@@ -65,9 +70,12 @@ def define_spaces(gridsize, N):
 
 # ------------------------------------------------------------------
 
-def initialize_u0_random(N):
+def initialize_u0_random(N, REAL = False):
     amplitude = 0.1
-    u0 = amplitude * (2 * torch.rand(N, N, dtype=dtype_real, device=device) - 1) + amplitude * 1j * (2*torch.rand(N, N, dtype=dtype_real, device=device) - 1)
+    if REAL:
+        u0 = amplitude * (2 * torch.rand(N, N, dtype=dtype_real, device=device) - 1) 
+    else:
+        u0 = amplitude * (2 * torch.rand(N, N, dtype=dtype_real, device=device) - 1) + amplitude * 1j * (2*torch.rand(N, N, dtype=dtype_real, device=device) - 1)
     return u0
 
 

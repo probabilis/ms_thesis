@@ -24,7 +24,10 @@ folder_path = r"out/condette/"
 # ---------------------------------------------------------------
 
 # Adapted Crank-Nicolson Schematic (Reference Condette Paper)
-def adapted_crank_nicolson(u0,x, k, modk, modk2, LIVE_PLOT, DATA_LOG, gridsize, N, th, epsilon, gamma, dt, max_it_fixpoint, max_it, tol, stop_limit, c0):
+def adapted_crank_nicolson(u0, LIVE_PLOT, DATA_LOG, gridsize, N, th, epsilon, gamma, dt, max_it_fixpoint, max_it, tol, stop_limit, c0):
+        
+        x, k, modk, modk2 = define_spaces(gridsize, N)
+        
         if LIVE_PLOT:
             plt.imshow(torch.real(u0).real, cmap='gray', extent=(0, 1, 0, 1), interpolation='none')
             plt.show()
@@ -147,9 +150,6 @@ if __name__ == "__main__":
     #u0 = initialize_u0_sin(N, x)
     #u0 = initialize_u0_image('input_test.png')
 
-    x, k, modk, modk2 = define_spaces(gridsize, N)
-
-
-    adapted_crank_nicolson(u0,x,k,modk,modk2, LIVE_PLOT, DATA_LOG, **asdict(labyrinth_data_params), **asdict(sim_params))
+    adapted_crank_nicolson(u0, LIVE_PLOT, DATA_LOG, **asdict(labyrinth_data_params), **asdict(sim_params))
 
     

@@ -32,6 +32,19 @@ class SimulationParameters:
     c0 : float # integral constant
 
 
+@dataclass
+class PGD_SimulationParameters:
+    tau : float
+    num_iters : int
+    prox_newton_iters: int
+    tol_newton: float
+    c0 : float # integral constant
+
+@dataclass
+class GD_SimulationParameters:
+    num_iters : int
+    c0 : float # integral constant
+
 # ----------------------------------------- #
 
 
@@ -80,6 +93,18 @@ c0 = 9/32
 # Sinus initial config data params
 sin_data_params = replace(labyrinth_data_params, gamma = 1/50)
 
+# PGD sim params
+pgd_sim_params = PGD_SimulationParameters(
+tau = 5e-3,              # proximal gradient step size
+num_iters = 100_000,     # total iterations )
+prox_newton_iters = 20,  # iterations for prox Newton
+tol_newton = 1e-8,       # stop tol inside prox
+c0 = 9/32)
+
+gd_sim_params = GD_SimulationParameters(
+num_iters = 200_000,
+c0 = 9/32
+)
 
 # ----------------------------------------- #
 
