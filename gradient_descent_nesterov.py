@@ -8,7 +8,7 @@ from pattern_formation import fourier_multiplier,energy_value, dtype_real, devic
 from gradient_descent_proximal import prox_h
 from params import labyrinth_data_params, get_DataParameters, get_SimulationParamters
 from params import pgd_sim_params as ngd_sim_params
-from env_utils import PATHS, get_args, plotting_style, plotting_schematic
+from env_utils import PATHS, print_bars, get_args, plotting_style, plotting_schematic, log_data
 
 
 # ---------------------------------------------------------------
@@ -103,41 +103,20 @@ def gradient_descent_nesterov(u, LIVE_PLOT, DATA_LOG, gridsize, N, th, gamma, ep
                     msg += " (RESTART)"
                 print(msg)
 
-            # live plotting (occasional)
             if (n % 1000) == 0 and LIVE_PLOT:
-                
-                ax1.clear()
-                ax2.clear()
-                """
-                ax1.imshow(u_curr.cpu().numpy(), cmap='gray', extent=(0,1,0,1))
-                ax1.set_title(f"Iteration {n}")
-                fig1.savefig(folder_path + f"image_graddescent_nesterov_N={N}_nmax={num_iters}_gamma={gamma}_eps={epsilon}.png")
-                ax2.plot(torch.arange(0,len(energies)), energies)
-
-                ax2.set_title("energy evolution")
-                fig2.savefig(folder_path + f"energy_graddescent_nesterov_N={N}_nmax={num_iters}_gamma={gamma}_eps={epsilon}.png")
-                plt.pause(1)
-                """
-
                 plotting_schematic(folder_path, ax1, fig1, ax2, fig2, u_curr, energies, N, num_iters, gamma, epsilon, n)
                 plt.pause(1)
         
-        plt.ioff()
-
-
 
     except KeyboardInterrupt:
         print("Exit.")
-        if DATA_LOG:
-            print("yes")
-            ax1.imshow(u_curr.cpu().numpy(), cmap='gray', extent=(0,1,0,1))
-            ax1.set_title(f"Iteration {n}")
-            fig1.savefig(folder_path / f"image_graddescent_nesterov_N={N}_nmax={num_iters}_gamma={gamma}_eps={epsilon}.png")
-            ax2.plot(torch.arange(0,len(energies)), energies)
-
-            ax2.set_title("energy evolution")
-            fig2.savefig(folder_path / f"energy_graddescent_nesterov_N={N}_nmax={num_iters}_gamma={gamma}_eps={epsilon}.png")
-            plt.pause(1)
+    
+    plt.ioff()
+    
+    if DATA_LOG:
+        log_data(folder_path, u, energies, N, num_iters, gamma, epsilon)
+        plotting_schematic(folder_path, ax1, fig1, ax2, fig2, u_curr, energies, N, num_iters, gamma, epsilon, n)
+        plt.pause(1)
 
 # ---------------------------------------------------------------
 
@@ -153,7 +132,9 @@ if __name__ == "__main__":
     gridsize, N, th, epsilon, gamma = get_DataParameters(labyrinth_data_params)
     u = initialize_u0_random(N, REAL = True)
     
+    print_bars()
     print(labyrinth_data_params)
     print(ngd_sim_params)
+    print_bars()
 
     gradient_descent_nesterov(u, LIVE_PLOT, DATA_LOG,**asdict(labyrinth_data_params),**asdict(ngd_sim_params) )

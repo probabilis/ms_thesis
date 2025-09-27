@@ -3,6 +3,7 @@ import argparse
 import torch
 import matplotlib.pyplot as plt
 from pathlib import Path 
+import pandas as pd
 
 # ---------------------------------------------------------------
 
@@ -26,6 +27,11 @@ def plotting_style():
 
 term_size = os.get_terminal_size()
 
+
+def print_bars(term_size = term_size):
+    print(term_size.columns * "-")
+
+
 class bcolors:
     """
     class for colored terminal output
@@ -41,18 +47,37 @@ class bcolors:
     UNDERLINE = '\033[4m'
 
 
-def plotting_schematic(folder_path, ax1, fig1, ax2, fig2, u, energies, N, num_iters, gamma, epsilon, ii):
+def get_filename(N, num_iters, gamma, epsilon):
+    return f"N={N}_nmax={num_iters}_gamma={gamma}_eps={epsilon}"
 
+
+def log_data(folder_path, u, energies, N, num_iters, gamma, epsilon):
+
+    file_name = get_filename(N, num_iters, gamma, epsilon)
+
+    df_energies = pd.DataFrame(energies)
+    u_np = u.numpy()
+    df_u = pd.DataFrame(u_np)
+    
+    df_energies.to_csv(folder_path / f"{file_name}_energy_data", index = False, header = False)
+    df_u.to_csv(folder_path / f"{file_name}_pattern_data", index = False, header = False)
+
+
+
+def plotting_schematic(folder_path, ax1, fig1, ax2, fig2, u, energies, N, num_iters, gamma, epsilon, ii):
+    ax1.clear()
+    ax2.clear()
     #plt.rc('text', usetex=True)
     #plt.rc('font', family='serif')
+    file_name = get_filename(N, num_iters, gamma, epsilon)
 
     ax1.imshow(u.cpu().numpy(), cmap='gray', extent=(0,1,0,1))
     ax1.set_title(f"Iteration {ii}")
-    fig1.savefig(folder_path / f"image_graddescent_nesterov_N={N}_nmax={num_iters}_gamma={gamma}_eps={epsilon}.png")
+    fig1.savefig(folder_path / f"{file_name}_pattern.png")
     ax2.plot(torch.arange(0,len(energies)), energies)
 
     ax2.set_title("energy evolution")
-    fig2.savefig(folder_path / f"energy_graddescent_nesterov_N={N}_nmax={num_iters}_gamma={gamma}_eps={epsilon}.png")
+    fig2.savefig(folder_path / f"{file_name}_energy.png")
 
     return None
 
