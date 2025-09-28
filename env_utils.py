@@ -16,6 +16,8 @@ class PATHS:
     PATH_PGD = _BASE / 'pgd'
     PATH_NESTEROV = _BASE / 'nesterov'
 
+    COMPARISON = _BASE / 'comparison'
+
 # ---------------------------------------------------------------
 
 

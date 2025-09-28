@@ -11,7 +11,7 @@ from env_utils import PATHS, print_bars, get_args, plotting_style, plotting_sche
 
 # ---------------------------------------------------------------
 
-def prox_h(v, tau, gamma, eps, c0,maxiter, tol):
+def prox_h(v, tau, gamma, eps, c0, maxiter, tol):
     # --- proximal operator for h(x) = (gamma/epsilon) * c0 * (1 - x^2)^2 ---
     # via vectorized Newton method, returns prox evaluated elementwise
     # Ref.: https://stackoverflow.com/questions/30191851/vectorize-a-newton-method-in-python-numpy

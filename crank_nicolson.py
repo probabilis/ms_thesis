@@ -33,18 +33,20 @@ def adapted_crank_nicolson(u0, LIVE_PLOT, DATA_LOG, gridsize, N, th, epsilon, ga
     energy_diff = 1000
     ii = 0
 
-    plt.ion()
-    fig1, ax1 = plt.subplots(figsize = (14,12))
-    fig2, ax2 = plt.subplots(figsize = (10,10))
+    if LIVE_PLOT or DATA_LOG:
+        plt.ion()
+        fig1, ax1 = plt.subplots(figsize = (14,12))
+        fig2, ax2 = plt.subplots(figsize = (10,10))
 
     fp_iterations = []
 
     pbar = tqdm(total=max_it)
 
     try:
-        while ii < max_it and energy_diff > stop_limit:
+        while sum(fp_iterations) < max_it and energy_diff > stop_limit:
             ii_fp, u_np1, err, conv = fixpoint(u_n, L, dt, N, epsilon, gamma, max_it_fixpoint, tol, c0)
             fp_iterations.append(ii_fp)
+            print(ii_fp)
             #print("Energy diff: ", energy_diff)
             if conv:
                 curr_energy = energy_value(gamma, epsilon, N, u_np1, th, modk, modk2, c0)
@@ -82,6 +84,8 @@ def adapted_crank_nicolson(u0, LIVE_PLOT, DATA_LOG, gridsize, N, th, epsilon, ga
         log_data(folder_path, u_n, energies, N, max_it, gamma, epsilon)
         plotting_schematic(folder_path, ax1, fig1, ax2, fig2, u_n, energies, N, max_it, gamma, epsilon, ii)
         plt.pause(1)
+
+    return energies
 
 # ---------------------------------------------------------------
 

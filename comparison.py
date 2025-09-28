@@ -3,15 +3,17 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
-from pattern_formation import fourier_multiplier, energy_value, dtype_real, device
+from pattern_formation import *
+from env_utils import PATHS, plotting_style
 
+plotting_style()
 # ---------------------------------------------------------------
 # Parameters
 # ---------------------------------------------------------------
 
-folder_path = r"out/"
+folder_path = PATHS.COMPARISON
 
-L = 1.0
+gridsize = 1.0
 N = 128
 epsilon = 1/20
 gamma = 1/200
@@ -19,19 +21,13 @@ c0 = 9/32
 
 alpha = 1e-4       # step size for plain GD
 tau   = 5e-3       # step size for prox-based methods
-num_iter = 20_000
+num_iter = 3_000
 th = 1.0
 
 # ---------------------------------------------------------------
 # Fourier multipliers
 # ---------------------------------------------------------------
-k = torch.cat([
-    torch.arange(0, N // 2, dtype=dtype_real, device=device),
-    torch.arange(-N // 2, 0, dtype=dtype_real, device=device)
-])
-xi, eta = torch.meshgrid(k, k, indexing='ij')
-modk2 = (xi**2 + eta**2).to(dtype_real)
-modk = torch.sqrt(modk2)
+x, k, modk, modk2 = define_spaces(N, gridsize)
 
 sigma_k = fourier_multiplier(th * modk).to(dtype_real).to(device)
 M_k = sigma_k + gamma * epsilon * modk2
@@ -39,24 +35,11 @@ M_k = sigma_k + gamma * epsilon * modk2
 # ---------------------------------------------------------------
 # Initialization
 # ---------------------------------------------------------------
-def initialize_u0_random(N):
-    amplitude = 0.1
-    return amplitude * (2 * torch.rand(N, N, dtype=dtype_real, device=device) - 1)
-
-u0 = initialize_u0_random(N)
+u0 = initialize_u0_random(N, REAL = True)
 
 # ---------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------
-def fft2_real(x): return torch.fft.fft2(x)
-def ifft2_real(x): return torch.fft.ifft2(x).real
-
-def grad_g(u):
-    Fu = fft2_real(u)
-    grad_hat = M_k * Fu
-    return ifft2_real(grad_hat)
-
-from gradient_descent import double_well_prime
 
 def prox_h(v, tau, gamma=gamma, eps=epsilon, c0=c0, maxiter=20, tol=1e-8):
     lam = tau * (gamma / eps) * c0
@@ -103,7 +86,7 @@ def run_proximal_gradient(u0, tau, num_iter):
     u = u0.clone()
     energies = []
     for _ in tqdm(range(num_iter), desc="ProxGD"):
-        ggrad = grad_g(u)
+        ggrad = grad_g(u, M_k)
         v = u - tau * ggrad
         u = prox_h(v, tau)
         energies.append(energy_value(gamma, epsilon, N, u, th, modk, modk2, c0))
@@ -120,7 +103,7 @@ def run_nesterov(u0, tau, num_iter):
         beta = (t_prev - 1.0) / t_curr
         y = u_curr + beta * (u_curr - u_prev)
         # forward-backward
-        ggrad = grad_g(y)
+        ggrad = grad_g(y, M_k)
         v = y - tau * ggrad
         u_next = prox_h(v, tau)
         # update
@@ -128,17 +111,44 @@ def run_nesterov(u0, tau, num_iter):
         energies.append(energy_value(gamma, epsilon, N, u_curr, th, modk, modk2, c0))
     return energies
 
+def run_crank_nicolson():
+    LIVE_PLOT = False
+    DATA_LOG = False
+    dt = 1/10
+    max_it_fixpoint = 10
+    max_it = num_iter
+    tol = 1e-6
+    stop_limit = 1e-9
+    from crank_nicolson import adapted_crank_nicolson
+
+    energies = adapted_crank_nicolson(u0, LIVE_PLOT, DATA_LOG, gridsize, N, th, epsilon, gamma, dt, max_it_fixpoint, max_it, tol, stop_limit, c0)
+    return energies
 # ---------------------------------------------------------------
 # Run all methods
 # ---------------------------------------------------------------
+energies_cn = run_crank_nicolson()
+
 energies_gd = run_gradient_descent(u0, alpha, num_iter)
 energies_prox = run_proximal_gradient(u0, tau, num_iter)
 energies_nest = run_nesterov(u0, tau, num_iter)
+
+
+def relative(x):
+    if len(x) > 1:
+        return [abs(i-x[0]) for i in x]
+    else:
+        return []
+    
+energies_cn = relative(energies_cn)
+energies_gd = relative(energies_gd)
+energies_prox = relative(energies_prox)
+energies_nest = relative(energies_nest)
 
 # ---------------------------------------------------------------
 # Plot
 # ---------------------------------------------------------------
 plt.figure(figsize=(8,6))
+plt.semilogy(energies_cn, label="Crank Nicolson")
 plt.semilogy(energies_gd, label="Gradient Descent")
 plt.semilogy(energies_prox, label="Proximal Gradient Descent")
 plt.semilogy(energies_nest, label="Nesterov + Prox")
@@ -147,5 +157,6 @@ plt.ylabel("Energy (log scale)")
 plt.title("Convergence comparison")
 plt.legend()
 plt.grid(True)
-plt.savefig(folder_path + f"energy_convergence_comparison_N={N}_nmax={num_iter}_gamma={gamma}_eps={epsilon}.png")
+plt.tight_layout()
+plt.savefig(folder_path / f"energy_convergence_comparison_N={N}_nmax={num_iter}_gamma={gamma}_eps={epsilon}.png")
 plt.show()
