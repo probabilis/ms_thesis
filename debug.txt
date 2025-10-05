@@ -1,0 +1,54 @@
+CN
+Term0 tensor(0.0279, dtype=torch.float64)
+Term1 tensor(0.0291, dtype=torch.float64)
+
+Nesterov:
+Term0 tensor(0.0279, dtype=torch.float64)
+Term1 tensor(0.0281, dtype=torch.float64)
+
+---------------------------------------------
+
+CN:
+Term0 tensor(0.0279, dtype=torch.float64)
+Term1 tensor(0.0325, dtype=torch.float64)
+
+
+Nesterov:
+Term0 tensor(0.0279, dtype=torch.float64)
+Term1 tensor(0.0281, dtype=torch.float64)
+
+----------------------------------------------
+CN:
+
+max sigma: 1.0
+min sigma: 0.0008792151524971739
+mean sigma: 0.0021975551898503337
+
+
+S comp:
+
+Nest:
+max sigma: 0.11252397032864826
+min sigma: 0.11252397032864826
+mean sigma: 0.11252397032864826
+
+
+----------------------------------------------
+modk:
+
+max modk: 181.01933598375618
+min modk: 0.0
+mean modk: 97.94619583699298
+
+
+GD:
+max modk: 1.4142135623730951
+min modk: 1.4142135623730951
+mean modk: 1.4142135623730951
+
+
+
+
+
+
+

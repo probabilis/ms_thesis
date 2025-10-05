@@ -83,7 +83,7 @@ def initialize_u0_image(file_path):
     image = Image.open(file_path).convert('L')
     np_array = np.array(image)
     u0 = torch.from_numpy(np_array).float() / 255.0  # PyTorch tensor -> normalize to [0.0, 1.0]
-    print(u0.shape)
+    #print(u0.shape)
     return u0
 
 
@@ -107,17 +107,27 @@ def grad_g(u, M_k):
 # ------------------------------------------------------------------
 
 def energy_value(gamma, epsilon, N, u, th, modk, modk2, c0):
+    DEBUG = False
+
     W = double_well_potential(u, c0)
     ftu = torch.fft.fft2(u) / (N ** 2)
-
     S = fourier_multiplier(th * modk)
-    #print('max sigma:', torch.max(S).item())
-    #print('min sigma:', torch.min(S).item())
-    #print('mean sigma:', torch.mean(S).item())
 
     energy = (gamma / epsilon) * torch.sum(W) / (N ** 2)
     energy += 0.5 * torch.sum((S + gamma * epsilon * modk2) * torch.abs(ftu) ** 2)
+
+    if DEBUG:
+        print('max modk:', torch.max(modk).item())
+        print('min modk:', torch.min(modk).item())
+        print('mean modk:', torch.mean(modk).item())
+        print('max sigma:', torch.max(S).item())
+        print('min sigma:', torch.min(S).item())
+        print('mean sigma:', torch.mean(S).item())
+
     return energy.item()
+
+
+
 
 def energy_tensor(u, gamma, epsilon, N, th, modk, modk2, c0, sigma_k): 
     # returns a torch scalar (not .item()), matching your energy_value implementation
@@ -135,7 +145,8 @@ def N_eps(U_np1, U_n, epsilon, gamma, c0):
 
 
 def fixpoint(U_0, L_eps, dt, N, epsilon, gamma, Nmax, tol, c0):
-    
+    DEBUG = False
+
     _ones = torch.ones(N)
 
     G_m = (_ones - dt / 2 * L_eps)
@@ -150,32 +161,29 @@ def fixpoint(U_0, L_eps, dt, N, epsilon, gamma, Nmax, tol, c0):
     ii = 0
     conv = False
     
-    #print('max L:', torch.max(L_eps).item())
-    #print('max |CT|:', torch.max(torch.abs(CT)).item())
-    #print('mean |u0|:', torch.mean(torch.abs(U_0)).item())
-    #print('mean |u0|^2:', torch.mean(torch.abs(U_0)**2).item())
+
+    if DEBUG:
+        print('max L:', torch.max(L_eps).item())
+        print('max |CT|:', torch.max(torch.abs(CT)).item())
+        print('mean |u0|:', torch.mean(torch.abs(U_0)).item())
+        print('mean |u0|^2:', torch.mean(torch.abs(U_0)**2).item())
 
 
     while ii < Nmax and error > tol:
 
         non_linear = N_eps(U_n, U_0, epsilon, gamma, c0) # for fixed U_0 (initial image config.)
 
-        #print('max |NL|:', torch.max(torch.abs(non_linear)).item())
+        if DEBUG:
+            print('max |NL|:', torch.max(torch.abs(non_linear)).item())
 
         U_np1 = torch.fft.ifft2( torch.fft.fft2(dt * non_linear) / G_p ).real + CT
-        
         error = torch.max(torch.abs(U_np1 - U_n)).item()
-        
-        #print("error", error)
+
         U_0 = U_n
         U_n = U_np1
         ii += 1
 
-    
     if error < tol:
         conv = True
 
     return ii, U_n, error, conv
-
-
-# -------------------------------------

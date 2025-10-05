@@ -1,0 +1,9 @@
+time comparison:
+
+method, iterations per second
+CN_FP=1, 116.4
+CN_FP=2, 78.8
+CN_FP=5, 64.4
+GD, 99.1
+ProxGD, 87.3
+Nesterov, 103.8

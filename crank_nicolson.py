@@ -12,18 +12,15 @@ from pattern_formation import *
 from params import labyrinth_data_params, cn_sim_params, get_DataParameters, get_SimulationParamters, sin_data_params
 from env_utils import PATHS, get_args, plotting_style, plotting_schematic, log_data, print_bars
 
-
 # ---------------------------------------------------------------
 
-def adapted_crank_nicolson(u0, LIVE_PLOT, DATA_LOG, gridsize, N, th, epsilon, gamma, dt, max_it_fixpoint, max_it, tol, stop_limit, c0):
-    
-    
+def adapted_crank_nicolson(u0, LIVE_PLOT, DATA_LOG, gridsize, N, th, epsilon, gamma, dt, max_it_fixpoint, max_it, tol, stop_limit, c0, STOP_BY_TOL = True):
     # Adapted Crank-Nicolson Schematic (Reference Condette Paper)
+
     x, k, modk, modk2 = define_spaces(gridsize, N)
     
-    L = gamma * epsilon * modk2 + fourier_multiplier(th * modk) # (2 * np.pi)**2 
+    L = gamma * epsilon * modk2 + fourier_multiplier(th * modk) # (2 * np.pi)**2 ... not correct for normalization
     L[0, 0] = fourier_multiplier(torch.tensor(0.0))
-
 
     time_vector = [0.0]
     energies = [energy_value(gamma, epsilon, N, u0, th, modk, modk2, c0)]
@@ -40,22 +37,26 @@ def adapted_crank_nicolson(u0, LIVE_PLOT, DATA_LOG, gridsize, N, th, epsilon, ga
 
     fp_iterations = []
 
-    pbar = tqdm(total=max_it)
+    pbar = tqdm(total=max_it, desc = "CN")
 
     try:
-        while sum(fp_iterations) < max_it and energy_diff > stop_limit:
+        while ii < max_it:
+
+            if STOP_BY_TOL and energy_diff <= stop_limit: # only when STOP_BY_TOL is True, max_iterations will be cut
+                break
+
             ii_fp, u_np1, err, conv = fixpoint(u_n, L, dt, N, epsilon, gamma, max_it_fixpoint, tol, c0)
             fp_iterations.append(ii_fp)
-            print(ii_fp)
-            #print("Energy diff: ", energy_diff)
+            
             if conv:
                 curr_energy = energy_value(gamma, epsilon, N, u_np1, th, modk, modk2, c0)
                 u_diff = torch.max(torch.abs(u_np1 - u_n)).item()
+
                 energy_diff = energies[-1] - curr_energy
+                
                 energies.append(curr_energy)
                 _time = time_vector[-1] + dt
                 time_vector.append(_time)
-                #print("time: ", _time)
 
                 u_n = u_np1
                 ii += 1
@@ -70,7 +71,6 @@ def adapted_crank_nicolson(u0, LIVE_PLOT, DATA_LOG, gridsize, N, th, epsilon, ga
                     print("exit.")
                     raise RuntimeError("Time step too small. Exiting.")
                 
-
             pbar.update(1)
 
     except KeyboardInterrupt:

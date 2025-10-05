@@ -106,7 +106,7 @@ c0 = 9/32
 # PGD sim params
 pgd_sim_params = PGD_SimulationParameters(
 tau = 5e-3,              # proximal gradient step size
-num_iters = 100_000,     # total iterations )
+num_iters = 20_000,     # total iterations )
 prox_newton_iters = 20,  # iterations for prox Newton
 tol_newton = 1e-8,       # stop tol inside prox
 c0 = 9/32)
