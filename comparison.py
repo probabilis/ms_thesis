@@ -53,9 +53,7 @@ def prox_h(v, tau, gamma=gamma, eps=epsilon, c0=c0, maxiter=20, tol=1e-8):
         x = x_new
     return x
 
-# Methods
 # ---------------------------------------------------------------
-
 
 
 def run_gradient_descent(u0, alpha, num_iter, STOP_BY_TOL = False):
@@ -67,10 +65,10 @@ def run_gradient_descent(u0, alpha, num_iter, STOP_BY_TOL = False):
         # Fourier transform with consistent scaling
         Fu = fft2_real(u) / (N**2)
 
-        # linear + nonlocal part (consistent with energy_value)
+        # linear + nonlocal part
         grad_lin = ifft2_real((sigma_k + gamma * epsilon * modk2) * Fu) * (N**2)
 
-        # nonlinear double well term (with gamma factor)
+        # nonlinear double well term
         grad_double = (gamma / epsilon) * double_well_prime(u, c0)
 
         # total gradient
@@ -158,7 +156,6 @@ B = True
 if A:
 
     # ---------------------------------------------------------------
-    # Run all methods
 
     energies_cn = run_crank_nicolson(max_it_fixpoint_ls)
     energies_gd = run_gradient_descent(u0, alpha, num_iter)
@@ -177,7 +174,6 @@ if A:
     ax.plot(energies_nest, label="Nesterov Proximal GD", linewidth = 3, color = colors_gd[2])
 
     #ax.set_yscale('log')
-
     ax.set_xlabel("Iteration $i$")
     ax.set_ylabel("Energy $E_i$")
     ax.set_title("Energy convergence comparison")

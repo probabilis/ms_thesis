@@ -33,7 +33,9 @@ Numerical methods:
 ### Open:
 - Restructure project with modules and classes
 - Remove redunant code
+- Integrate function docstrings for main methods
 - Standardize plotting schematic + LaTex Font integration
 - Integrate data-savings for all algorithms (+ concurrent savings for let'say max_it/10 times)
 - Check runtimes by multiple runs to get an appropriate estimator
 - Check loop efficiency & parallelization for Torch module 
+- comparison.py: plot all u's after e.g.: 1000 iterations

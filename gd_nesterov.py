@@ -14,7 +14,7 @@ from env_utils import PATHS, print_bars, get_args, plotting_style, plotting_sche
 # ---------------------------------------------------------------
 
 def gradient_descent_nesterov(u, LIVE_PLOT, DATA_LOG, gridsize, N, th, gamma, epsilon, tau, c0, num_iters, prox_newton_iters, tol_newton):
-    # --- FISTA-like (Nesterov) proximal gradient with adaptive restart ---
+    # Nesterov proximal gradient with adaptive restart
 
     # Initialize momentum variables
     u_prev = u.clone()           # u^{k-1}
@@ -42,18 +42,17 @@ def gradient_descent_nesterov(u, LIVE_PLOT, DATA_LOG, gridsize, N, th, gamma, ep
     try:
         for n in tqdm(range(num_iters)):
 
-            # --- 1) extrapolation (Nesterov momentum) ---
+            # 1) extrapolation (Nesterov momentum)
             t_curr = 0.5 * (1.0 + (1.0 + 4.0 * t_prev * t_prev) ** 0.5)   # t_k
             beta = (t_prev - 1.0) / t_curr                               # momentum factor
 
-            # y = u_curr + beta * (u_curr - u_prev)
             y = u_curr + beta * (u_curr - u_prev)
 
-            # --- 2) forward step at extrapolated point ---
+            # 2) forward step at extrapolated point
             ggrad = grad_g(y, M_k)                    # gradient of g at y
             v = y - tau * ggrad
 
-            # --- 3) prox (backward) step ---
+            # 3) prox (backward) step
             u_next = prox_h(v, tau, gamma, epsilon,c0, prox_newton_iters, tol_newton)
 
             # compute energy to possibly restart
@@ -62,7 +61,7 @@ def gradient_descent_nesterov(u, LIVE_PLOT, DATA_LOG, gridsize, N, th, gamma, ep
             except Exception:
                 E_next = None
 
-            # optional: compute energy of current iterate to compare (u_curr)
+            # compute energy of current iterate to compare u_curr
             if n == 0:
                 try:
                     E_curr_val = energy_value(gamma, epsilon, N, u_curr, th, modk, modk2, c0)
@@ -71,7 +70,7 @@ def gradient_descent_nesterov(u, LIVE_PLOT, DATA_LOG, gridsize, N, th, gamma, ep
             else:
                 E_curr_val = energies[-1]
 
-            # --- 4) adaptive restart: if energy increased -> reset momentum ---
+            # 4) adaptive restart: if energy increased -> reset momentum
             restarted = False
             if USE_RESTART and (E_next is not None) and (E_curr_val is not None):
                 if E_next > E_curr_val + 1e-14:   # small tolerance to avoid numerical jitter
@@ -90,12 +89,11 @@ def gradient_descent_nesterov(u, LIVE_PLOT, DATA_LOG, gridsize, N, th, gamma, ep
                     except Exception:
                         E_next = None
 
-            # --- 5) update momentum history for next iteration ---
+            # 5) update momentum history for next iteration
             u_prev = u_curr
             u_curr = u_next
             t_prev = t_curr
 
-            # logging
             energies.append(E_next)
             if (n % PRINT_EVERY) == 0:
                 msg = f"iter {n:6d}: E={E_next:.6e} alpha={tau:.2e}"

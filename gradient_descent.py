@@ -36,9 +36,9 @@ def backtracking_autograd(u, energy_fn, alpha_init=1e-2, beta=0.5, c=1e-4, max_b
     E_curr_val = float(E_curr.detach().cpu().item())
 
     for i in range(max_back):
-        u_try = (u - alpha * grad).detach()   # note we step from original u, not u_var
+        u_try = (u - alpha * grad).detach()   # we step from original u, not u_var
         E_try = energy_fn(u_try)
-        # if not finite, shrink and continue
+        # if not finite -> reduce and continue
         if not torch.isfinite(E_try):
             if verbose: print(f" backtrack {i}: E_try not finite, alpha -> {alpha*beta:.2e}")
             alpha *= beta
@@ -49,12 +49,11 @@ def backtracking_autograd(u, energy_fn, alpha_init=1e-2, beta=0.5, c=1e-4, max_b
         if E_try_val <= E_curr_val - c * alpha * g_norm2:
             if verbose: print(f" backtrack success at {i} alpha={alpha:.2e} E_curr={E_curr_val:.6e} E_new={E_try_val:.6e}")
             return u_try, E_try_val, alpha, grad
-        # shrink alpha
+        # reduce alpha
         if verbose and i < 4:
             print(f" backtrack {i}: alpha={alpha:.2e} E_try={E_try_val:.6e} need <= {E_curr_val - c*alpha*g_norm2:.6e}")
         alpha *= beta
 
-    # fail-safe: return original u (or last try)
     if verbose:
         print(" backtracking failed; returning original u")
     return u.clone().detach(), E_curr_val, alpha, grad

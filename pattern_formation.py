@@ -130,12 +130,11 @@ def energy_value(gamma, epsilon, N, u, th, modk, modk2, c0):
 
 
 def energy_tensor(u, gamma, epsilon, N, th, modk, modk2, c0, sigma_k): 
-    # returns a torch scalar (not .item()), matching your energy_value implementation
-    # NB: keep operations in torch (no .item())
-    W = double_well_potential(u, c0)                    # tensor
-    ftu = torch.fft.fft2(u) / (N ** 2)                   # match your energy_value style
+    # same as energy_value but returns a torch scalar (not .item()) for autograd backtracking
+    W = double_well_potential(u, c0)
+    ftu = torch.fft.fft2(u) / (N ** 2)                 
     S = sigma_k
-    e1 = (gamma / epsilon) * torch.sum(W) / (N ** 2)     # use same normalization as energy_value
+    e1 = (gamma / epsilon) * torch.sum(W) / (N ** 2)    
     e2 = 0.5 * torch.sum((S + gamma * epsilon * modk2) * torch.abs(ftu) ** 2)
     return e1 + e2
 

@@ -7,6 +7,10 @@ import pandas as pd
 
 # ---------------------------------------------------------------
 
+from pattern_formation import dtype_real, dtype_complex, device
+
+# ---------------------------------------------------------------
+
 class PATHS:
 
     _BASE = Path() / 'out'
