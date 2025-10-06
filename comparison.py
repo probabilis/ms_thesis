@@ -258,3 +258,5 @@ if B:
     plt.savefig(folder_path / f"energy_convergence_comparison_stop-by-limit={ENERGY_STOP_TOL}_N={N}_nmax={num_iter}_gamma={gamma}_eps={epsilon}.png", dpi = 300)
     plt.show()
 
+# ---------------------------------------------------------------
+# todo: plot all u's after e.g.: 1000 iterations
