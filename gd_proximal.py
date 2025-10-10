@@ -68,7 +68,7 @@ def gradient_descent_proximal(u, LIVE_PLOT, DATA_LOG, gridsize, N, th, gamma, ep
     try:
         for n in tqdm(range(num_iters)):
 
-            # forward step (gradient of smooth part)
+            # forward step (gradient of smooth part (laplacian + FM) )
             ggrad = grad_g(u, M_k)     
             v = u - tau * ggrad
 

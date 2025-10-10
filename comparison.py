@@ -62,13 +62,16 @@ def run_gradient_descent(u0, alpha, num_iter, STOP_BY_TOL = False):
     energies = [energy_value(gamma, epsilon, N, u0, th, modk, modk2, c0)]
 
     for _ in tqdm(range(num_iter), desc="GD"):
-        # Fourier transform with consistent scaling
+        # Fourier transform normalized
         Fu = fft2_real(u) / (N**2)
 
-        # linear + nonlocal part
-        grad_lin = ifft2_real((sigma_k + gamma * epsilon * modk2) * Fu) * (N**2)
+        # local term 1 (laplcian term)
+        laplacian_fourier_space = gamma * epsilon * modk2
 
-        # nonlinear double well term
+        # linear + nonlocal part (FM part + laplacian)
+        grad_lin = ifft2_real((sigma_k + laplacian_fourier_space) * Fu) * (N**2)
+
+        # nonlinear / local part (double well term)
         grad_double = (gamma / epsilon) * double_well_prime(u, c0)
 
         # total gradient
@@ -255,4 +258,4 @@ if B:
     plt.show()
 
 # ---------------------------------------------------------------
-# todo: plot all u's after e.g.: 1000 iterations
+# 

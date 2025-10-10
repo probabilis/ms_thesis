@@ -49,10 +49,11 @@ def gradient_descent_nesterov(u, LIVE_PLOT, DATA_LOG, gridsize, N, th, gamma, ep
             y = u_curr + beta * (u_curr - u_prev)
 
             # 2) forward step at extrapolated point
+            # (gradient of smooth part (laplacian + FM) )
             ggrad = grad_g(y, M_k)                    # gradient of g at y
             v = y - tau * ggrad
 
-            # 3) prox (backward) step
+            # 3) backward/prox step
             u_next = prox_h(v, tau, gamma, epsilon,c0, prox_newton_iters, tol_newton)
 
             # compute energy to possibly restart

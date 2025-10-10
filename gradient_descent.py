@@ -61,6 +61,7 @@ def backtracking_autograd(u, energy_fn, alpha_init=1e-2, beta=0.5, c=1e-4, max_b
 # ---------------------------------------------------------------
 
 def gradient_descent_backtracking(u, LIVE_PLOT, DATA_LOG, gridsize, N, th, gamma, epsilon, c0, num_iters):
+    # direct calculation of the GD method via auto-grad method via PyTorch
 
     x, k, modk, modk2 = define_spaces(gridsize, N)
     sigma_k = fourier_multiplier(modk)
