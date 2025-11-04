@@ -5,22 +5,24 @@ import matplotlib.pyplot as plt
 from pathlib import Path 
 import pandas as pd
 
-# ---------------------------------------------------------------
-
-from pattern_formation import dtype_real, dtype_complex, device
 
 # ---------------------------------------------------------------
 
 class PATHS:
 
-    _BASE = Path() / 'out'
-    
-    PATH_CN = _BASE / 'cn'
-    PATH_GD = _BASE / 'gd'
-    PATH_PGD = _BASE / 'pgd'
-    PATH_NESTEROV = _BASE / 'nesterov'
+    _BASE = Path() / 'data'
 
-    COMPARISON = _BASE / 'comparison'
+    BASE_INPUT = _BASE / 'input'
+    BASE_OUTPUT = _BASE / 'output'
+
+    PATH_CN = BASE_OUTPUT / 'cn'
+    PATH_GD = BASE_OUTPUT / 'gd'
+    PATH_PGD = BASE_OUTPUT / 'pgd'
+    PATH_NESTEROV = BASE_OUTPUT / 'nesterov'
+
+    PATH_COMPARISON = BASE_OUTPUT / 'comparison'
+    PATH_EVALUATION = BASE_OUTPUT / 'evaluation'
+    PATH_PARAMS_STUDY = BASE_OUTPUT / 'params_study'
 
 # ---------------------------------------------------------------
 
@@ -77,13 +79,36 @@ def plotting_schematic(folder_path, ax1, fig1, ax2, fig2, u, energies, N, num_it
     #plt.rc('font', family='serif')
     file_name = get_filename(N, num_iters, gamma, epsilon)
 
-    ax1.imshow(u.cpu().numpy(), cmap='gray', extent=(0,1,0,1))
+    ax1.imshow(u.real.cpu().numpy(), cmap='gray', extent=(0,1,0,1))
     ax1.set_title(f"Iteration {ii}")
     fig1.savefig(folder_path / f"{file_name}_pattern.png")
     ax2.plot(torch.arange(0,len(energies)), energies)
 
     ax2.set_title("energy evolution")
     fig2.savefig(folder_path / f"{file_name}_energy.png")
+
+    return None
+
+
+def plotting_schematic_eval(folder_path, ax1, fig1, ax2, fig2, u, energies, N, num_iters, gamma, epsilon, _lambda, ii):
+    
+    plotting_style()
+    
+    ax1.clear()
+    ax2.clear()
+    #plt.rc('text', usetex=True)
+    #plt.rc('font', family='serif')
+    file_name = get_filename(N, num_iters, gamma, epsilon)
+    file_name = file_name + f"_lambda={_lambda}"
+
+    ax1.imshow(u.cpu().numpy(), cmap='gray', extent=(0,1,0,1))
+    ax1.set_title(f"$\\gamma$ = {gamma}, $\\epsilon$ = {epsilon}, $\\lambda$ = {_lambda} ($ii$ = {ii})")
+    fig1.savefig(folder_path / f"{file_name}_pattern.png")
+    ax2.plot(torch.arange(0,len(energies)), energies)
+
+    ax2.set_title("energy evolution")
+    fig2.savefig(folder_path / f"{file_name}_energy.png")
+    plt.close()
 
     return None
 
@@ -111,35 +136,3 @@ def get_args():
 # --------------------------------------------------------------------
 
 
-def fourier_multiplier_simple(k_mag, th):
-    """ 
-    1 / k fourier multiplier
-    """
-    k_safe = torch.where(k_mag < 1e-12, torch.tensor(1e-12), k_mag)
-    return th / k_safe
-
-def fourier_multiplier_exp(k_mag, th):
-    """
-    Exponential cutoff
-    """
-    return th * torch.exp(-k_mag * th)
-
-
-def fourier_multiplier_dipolar(k_mag, th):
-    """
-    Dipolar interaction kernel for magnetic thin films
-    For thin films, the demagnetization factor depends on thickness th
-    
-    Physical form: σ(k) = 1 - exp(-|k|*th) for thin films
-    This creates the characteristic labyrinth patterns
-    """
-    # Avoid numerical issues at k=0
-    k_safe = torch.where(k_mag < 1e-12, torch.tensor(1e-12, dtype=dtype_real, device=device), k_mag)
-    
-    # Dipolar kernel for thin films
-    sigma = 1.0 - torch.exp(-k_safe * th)
-    
-    # Handle k=0 case properly
-    sigma = torch.where(k_mag < 1e-12, torch.tensor(0.0, dtype=dtype_real, device=device), sigma)
-    
-    return sigma

@@ -45,6 +45,7 @@ class PGD_SimulationParameters:
 class GD_SimulationParameters:
     num_iters : int
     c0 : float # integral constant
+    alpha : float
 
 # ----------------------------------------- #
 
@@ -99,8 +100,9 @@ c0 = 9/32
 
 # Gradient Descent params
 gd_sim_params = GD_SimulationParameters(
-num_iters = 200_000,
-c0 = 9/32
+num_iters = 1_000_000,
+c0 = 9/32,
+alpha = 1e-4
 )
 
 # PGD sim params

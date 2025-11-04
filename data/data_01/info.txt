@@ -1,3 +1,0 @@
-- Ta/CoFeB/MgO Probe
-- linke und rechte zirkulare Polarisation (rcp bzw. lcp)
-- Die Bilder sind an fünf verschiedenen Probenpositionen vermessen worden und zeigen unterschiedlich große Domänenstrukturen

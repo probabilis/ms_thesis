@@ -14,7 +14,7 @@ from env_utils import PATHS, get_args, plotting_style, plotting_schematic, log_d
 
 # ---------------------------------------------------------------
 
-def adapted_crank_nicolson(u0, LIVE_PLOT, DATA_LOG, gridsize, N, th, epsilon, gamma, dt, max_it_fixpoint, max_it, tol, stop_limit, c0, STOP_BY_TOL = True):
+def adapted_crank_nicolson(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, epsilon, gamma, dt, max_it_fixpoint, max_it, tol, stop_limit, c0, STOP_BY_TOL = True):
     # Adapted Crank-Nicolson Schematic (Reference Condette Paper)
 
     x, k, modk, modk2 = define_spaces(gridsize, N)
@@ -31,13 +31,13 @@ def adapted_crank_nicolson(u0, LIVE_PLOT, DATA_LOG, gridsize, N, th, epsilon, ga
     ii = 0
 
     if LIVE_PLOT or DATA_LOG:
-        plt.ion()
         fig1, ax1 = plt.subplots(figsize = (14,12))
         fig2, ax2 = plt.subplots(figsize = (10,10))
+        plt.ion()
 
     fp_iterations = []
 
-    pbar = tqdm(total=max_it, desc = "CN")
+    pbar = tqdm(total=max_it, desc = "Crank Nicolson")
 
     try:
         while ii < max_it:
@@ -62,7 +62,7 @@ def adapted_crank_nicolson(u0, LIVE_PLOT, DATA_LOG, gridsize, N, th, epsilon, ga
                 ii += 1
                 
                 if LIVE_PLOT and ii % 100 == 0:
-                    plotting_schematic(folder_path, ax1, fig1, ax2, fig2, u_n, energies, N, max_it, gamma, epsilon, ii)
+                    plotting_schematic(FOLDER_PATH, ax1, fig1, ax2, fig2, u_n, energies, N, max_it, gamma, epsilon, ii)
                     plt.pause(1)
                 
             else:
@@ -81,9 +81,8 @@ def adapted_crank_nicolson(u0, LIVE_PLOT, DATA_LOG, gridsize, N, th, epsilon, ga
     plt.ioff()
 
     if DATA_LOG:
-        log_data(folder_path, u_n, energies, N, max_it, gamma, epsilon)
-        plotting_schematic(folder_path, ax1, fig1, ax2, fig2, u_n, energies, N, max_it, gamma, epsilon, ii)
-        plt.pause(1)
+        log_data(FOLDER_PATH, u_n, energies, N, max_it, gamma, epsilon)
+        plotting_schematic(FOLDER_PATH, ax1, fig1, ax2, fig2, u_n, energies, N, max_it, gamma, epsilon, ii)
 
     return energies
 
@@ -92,7 +91,7 @@ def adapted_crank_nicolson(u0, LIVE_PLOT, DATA_LOG, gridsize, N, th, epsilon, ga
 if __name__ == "__main__":
 
     plotting_style()
-    folder_path = PATHS.PATH_CN
+    FOLDER_PATH = PATHS.PATH_CN
 
     args = get_args()
     LIVE_PLOT = args.live_plot
@@ -109,6 +108,6 @@ if __name__ == "__main__":
     print(cn_sim_params)
     print_bars()
 
-    adapted_crank_nicolson(u0, LIVE_PLOT, DATA_LOG, **asdict(labyrinth_data_params), **asdict(cn_sim_params))
+    adapted_crank_nicolson(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, **asdict(labyrinth_data_params), **asdict(cn_sim_params))
 
     

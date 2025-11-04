@@ -2,13 +2,97 @@ import torch
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 from scipy.ndimage import gaussian_filter
-from dataclasses import asdict
+from dataclasses import asdict, replace
 
-from pattern_formation import *
+from pattern_formation import define_spaces, fourier_multiplier, dtype_real, device, energy_value, energy_value_fd_mix, grad_g, double_well_prime, grad_fd_mix, energy_tensor, initialize_u0_random
 from env_utils import PATHS,print_bars, get_args, plotting_style, plotting_schematic, log_data
 
 from params import labyrinth_data_params, gd_sim_params, get_DataParameters, get_SimulationParamters
 
+# ---------------------------------------------------------------  
+
+def gradient_descent(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamma, epsilon, c0, alpha, num_iters, STOP_BY_TOL = True, ENERGY_STOP_TOL = 1e-6):
+
+    LAPLACE_SPECTRAL = True
+
+    x, k, modk, modk2 = define_spaces(gridsize, N)
+
+    sigma_k = fourier_multiplier(th * modk).to(dtype_real).to(device)
+
+    u = u0.clone()
+
+    if LAPLACE_SPECTRAL:
+        energies = [energy_value(gamma, epsilon, N, u0, th, modk, modk2, c0)]
+    else:
+        energies = [energy_value_fd_mix(u0, sigma_k, N, gamma, epsilon, c0)]
+
+    if LIVE_PLOT or DATA_LOG:
+        fig1, ax1 = plt.subplots(figsize = (14,12))
+        fig2, ax2 = plt.subplots(figsize = (10,10))
+        plt.ion()
+
+
+    M_k = sigma_k + gamma * epsilon * modk2
+
+    Ls = float(M_k.max().cpu().item())
+    
+    alpha = 1e-4 * 2/Ls
+    print("Lipschitz constant",Ls)
+    print("alpha: ", alpha)
+
+    energies_diff_sum_index = 1000
+    energies_diff = []
+    ENERGY_DIFF_STOP_TOL = 1
+
+    for ii in tqdm(range(num_iters), desc="GD"):
+        if LAPLACE_SPECTRAL:
+            # local term 1 (laplcian term)
+            # linear + nonlocal part (FM part + laplacian)
+            grad_lin = grad_g(u, M_k)
+
+            # nonlinear / local part (double well term)
+            grad_double = (gamma / epsilon) * double_well_prime(u, c0)
+
+            # total gradient
+            grad_E = grad_lin + grad_double
+        else:
+            grad_E = grad_fd_mix(u, sigma_k, N, gamma, epsilon, c0)
+
+        # GD update
+        u -= alpha * grad_E
+        #print(u)
+
+        if LAPLACE_SPECTRAL:
+            curr_energy = energy_value(gamma, epsilon, N, u, th, modk, modk2, c0)
+        else:
+            curr_energy = energy_value_fd_mix(u, sigma_k, N, gamma, epsilon, c0)
+
+        energy_diff = energies[-1] - curr_energy
+        energies.append(curr_energy)
+        energies_diff.append(abs(energy_diff))
+
+        if LIVE_PLOT and (ii % 5_000) == 0:
+            plotting_schematic(FOLDER_PATH, ax1, fig1, ax2, fig2, u, energies, N, num_iters, gamma, epsilon, ii)
+            plt.pause(1)
+
+        #if STOP_BY_TOL and energy_diff < ENERGY_STOP_TOL:
+        #    break
+
+        if ii > energies_diff_sum_index:
+            energy_diff_sum = sum(energies_diff[ii-energies_diff_sum_index:-1]) 
+            #print("Sum of energy differences: ", energy_diff_sum)        
+            
+        if STOP_BY_TOL and (ii > energies_diff_sum_index) and (energy_diff_sum < ENERGY_DIFF_STOP_TOL):
+            print(f"Energy convergence : sum(last {energies_diff_sum_index} dE_i) = {energy_diff_sum:.3f} < {ENERGY_DIFF_STOP_TOL}")
+            break
+
+    plt.ioff()
+    if DATA_LOG:
+        u = u.real
+        log_data(FOLDER_PATH, u, energies, N, num_iters, gamma, epsilon)
+        plotting_schematic(FOLDER_PATH, ax1, fig1, ax2, fig2, u, energies, N, num_iters, gamma, epsilon, ii)
+
+    return energies
 
 # ---------------------------------------------------------------
 
@@ -60,11 +144,11 @@ def backtracking_autograd(u, energy_fn, alpha_init=1e-2, beta=0.5, c=1e-4, max_b
 
 # ---------------------------------------------------------------
 
-def gradient_descent_backtracking(u, LIVE_PLOT, DATA_LOG, gridsize, N, th, gamma, epsilon, c0, num_iters):
+def gradient_descent_backtracking(u, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamma, epsilon, c0, num_iters):
     # direct calculation of the GD method via auto-grad method via PyTorch
 
     x, k, modk, modk2 = define_spaces(gridsize, N)
-    sigma_k = fourier_multiplier(modk)
+    sigma_k = fourier_multiplier(th * modk).to(dtype_real).to(device)
     M_k = sigma_k + gamma * epsilon * modk2  # (S + γ ε |k|^2)
     
     Ls = float(M_k.max().cpu().item())
@@ -81,7 +165,6 @@ def gradient_descent_backtracking(u, LIVE_PLOT, DATA_LOG, gridsize, N, th, gamma
     try:
         # -- Gradient descent looop --
         for n in tqdm(range(num_iters)):
-
             u_new, E_new, alpha_used, grad = backtracking_autograd(
                 u, 
                 lambda v: energy_tensor(v, gamma, epsilon, N, th, modk, modk2, c0, sigma_k),
@@ -92,18 +175,18 @@ def gradient_descent_backtracking(u, LIVE_PLOT, DATA_LOG, gridsize, N, th, gamma
             E = E_new
             energies.append(E)
 
-            if LIVE_PLOT and (n % 10_000) == 0:
-                plotting_schematic(folder_path, ax1, fig1, ax2, fig2, u, energies, N, num_iters, gamma, epsilon, n)
+            if LIVE_PLOT and (n % 1_000) == 0:
+                plotting_schematic(FOLDER_PATH, ax1, fig1, ax2, fig2, u, energies, N, num_iters, gamma, epsilon, n)
                 plt.pause(1)
 
     except KeyboardInterrupt:
         print("Exit.")  
     
     plt.ioff()
-    
+    print(energies)
     if DATA_LOG:
-        log_data(folder_path, u, energies, N, num_iters, gamma, epsilon)
-        plotting_schematic(folder_path, ax1, fig1, ax2, fig2, u, energies, N, num_iters, gamma, epsilon, n)
+        log_data(FOLDER_PATH, u, energies, N, num_iters, gamma, epsilon)
+        plotting_schematic(FOLDER_PATH, ax1, fig1, ax2, fig2, u, energies, N, num_iters, gamma, epsilon, n)
         plt.pause(1)
 
 # ---------------------------------------------------------------
@@ -111,21 +194,24 @@ def gradient_descent_backtracking(u, LIVE_PLOT, DATA_LOG, gridsize, N, th, gamma
 if __name__ == "__main__":
     
     plotting_style()
-    folder_path = PATHS.PATH_GD
+    FOLDER_PATH = PATHS.PATH_GD
     
     args = get_args()
     LIVE_PLOT = args.live_plot
     DATA_LOG = args.data_log
-
+    labyrinth_data_params = replace(labyrinth_data_params, N = 40)
     gridsize, N, th, epsilon, gamma = get_DataParameters(labyrinth_data_params)
-    u = initialize_u0_random(N)
     
+    u = initialize_u0_random(N)
+    #print(u)
+    #print(u.shape)
+    import time
+
     print_bars()
     print(labyrinth_data_params)
     print(gd_sim_params)
     print_bars()
-    
-    gradient_descent_backtracking(u, LIVE_PLOT, DATA_LOG, **asdict(labyrinth_data_params), **asdict(gd_sim_params))
-
+    #gradient_descent_backtracking(u, LIVE_PLOT, DATA_LOG, FOLDER_PATH, **asdict(labyrinth_data_params), num_iters=500_000, c0 = 9/32)
+    gradient_descent(u, LIVE_PLOT, DATA_LOG, FOLDER_PATH, **asdict(labyrinth_data_params), **asdict(gd_sim_params))
 
     
