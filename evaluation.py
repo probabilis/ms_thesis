@@ -32,7 +32,7 @@ def energy_value_with_data(gamma, epsilon, N, u, th, modk, modk2, c0,
 # -----------------------------
 
 def gradient_descent_nesterov_evaluation(
-    u0, u_exp, _lambda, LIVE_PLOT, DATA_LOG, gridsize, N, th, gamma, epsilon, tau, c0,
+    u0, u_exp, _lambda, LIVE_PLOT, DATA_LOG, OUTPUT_PATH, gridsize, N, th, gamma, epsilon, tau, c0,
     num_iters, prox_newton_iters, tol_newton, STOP_BY_TOL = False, ENERGY_DIFF_STOP_TOL = 1e-1):
     """
     Nesterov (FISTA-like) proximal gradient with adaptive restart,
@@ -90,7 +90,7 @@ def gradient_descent_nesterov_evaluation(
             energies_diff.append(abs(energy_diff))
 
             if (n % 10) == 0 and LIVE_PLOT:
-                plotting_schematic_eval(folder_path, ax1, fig1, ax2, fig2, u_curr, energies, N, num_iters, gamma, epsilon, _lambda, n)
+                plotting_schematic_eval(OUTPUT_PATH, ax1, fig1, ax2, fig2, u_curr, energies, N, num_iters, gamma, epsilon, _lambda, n)
                 plt.pause(1)
 
             if n > energies_diff_sum_index:
@@ -153,7 +153,7 @@ if __name__ == "__main__":
 
     # ---------------------------------------------------------------
 
-    u, energies = gradient_descent_nesterov_evaluation(u0, u_exp, _lambda, LIVE_PLOT, DATA_LOG,**asdict(labyrinth_data_params),**asdict(ngd_sim_params), STOP_BY_TOL=True)
+    u, energies = gradient_descent_nesterov_evaluation(u0, u_exp, _lambda, LIVE_PLOT, DATA_LOG, OUTPUT_PATH,**asdict(labyrinth_data_params),**asdict(ngd_sim_params), STOP_BY_TOL=True)
     
     fig, axs = plt.subplots(1,2) # , figsize = (8,8)
     axs[0].imshow(u.cpu().numpy(), cmap='gray',origin="lower", extent=(0,1,0,1))

@@ -1,9 +1,11 @@
 #!/bin/bash
-DATASET="data_01"
+DATASET="data_00"
 
-% comment: 
+echo "Running GD Nesterov optimization method for experimental image data for $DATASET."
 
-for i in {5..6}; do
+#comment: data_0x for dataset nr + looping over different files in.
+
+for i in {1..5}; do
   python evaluation_add.py \
     --dataset $DATASET \
     --recording "00${i}"

@@ -30,7 +30,7 @@ if __name__ == "__main__":
             u, e = gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, **asdict(labyrinth_data_params),**asdict(pgd_sim_params), STOP_BY_TOL=False)
             
             axs[ii, jj].imshow(u.cpu().numpy(), cmap='gray', extent=(0,1,0,1))
-            axs[ii, jj].set_title(f"$\\gamma$ = {_gamma}, $\\epsilon$ = {_epsilon}")
+            axs[ii, jj].set_title(f"$\\gamma = {_gamma}, \\epsilon = {_epsilon}$")
 
     plt.savefig(FOLDER_PATH / "params_study.png", dpi = 300)
     plt.show()

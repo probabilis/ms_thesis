@@ -61,9 +61,10 @@ def clean_domains(y, min_obj=100, min_hole=100, se_radius=2):
     return y_clean
 
 
-def read_csv(_FILE_PATH, method : Literal["standardize","gmm"], PLOT = False, CLEAN_DOMAINS = False):
+def read_csv(_FILE_PATH, method : Literal["raw","standardize","clipped","gmm"], PLOT = False, CLEAN_DOMAINS = False):
 
     img = pd.read_csv(_FILE_PATH, header=None).values.astype(np.float32)
+    img[np.isnan(img)] = 0
 
     # 1) remove background
     hp = img - ndi.gaussian_filter(img, sigma=200)
@@ -76,10 +77,7 @@ def read_csv(_FILE_PATH, method : Literal["standardize","gmm"], PLOT = False, CL
     # 3) standardization 
     m, s = np.median(roi), np.median(np.abs(roi - np.median(roi))) + 1e-6
     z = (roi - m) / s
-
-    if method == "standardize":
-        return torch.from_numpy(z.astype(np.float32))
-
+    
     # 4) fit 2-component GMM on intensities
     x = z.reshape(-1,1)
     gm = GaussianMixture(n_components=2, covariance_type="full", n_init=5, random_state=0)
@@ -100,37 +98,48 @@ def read_csv(_FILE_PATH, method : Literal["standardize","gmm"], PLOT = False, CL
         # 6) diagnostics
         y = clean_domains(y)
 
-    def std_clip(x):
-        return x.clip(-np.std(x), + np.std(x))
-
-    img = std_clip(img)
-    z = std_clip(z)
+    z_clipped = np.where(roi > 0, 1, -1)
 
     if PLOT:
         plotting_style()
-        fig, axs = plt.subplots(3,2, figsize = (12,12))
+        fig, axs = plt.subplots(4,2, figsize = (12,12))
 
         axs[0,0].imshow(img, cmap='gray')
-        axs[0,0].set_title("MCD recording (clipped to $\\pm \\sigma$)")
+        axs[0,1].set_title("MCD image")
         axs[0,1].hist(img.ravel(), bins=256, density = True, color ='gray')
 
         axs[1,0].imshow(z, cmap='gray')
-        axs[1,0].set_title("MCD recording (clipped to $\\pm \\sigma$)")
+        axs[1,1].set_title("Cropped + Standardized + Gaussian Filter (GF)")
         axs[1,1].hist(z.ravel(), bins=256, density = True, color='gray')
-        axs[1,1].axvline(filters.threshold_otsu(z), ls='--') 
 
-        axs[2,0].imshow(y, cmap="gray")
-        axs[2,0].set_title("GMM posterior → [-1,1]")
-        axs[2,1].hist(y.ravel(), bins=256, density = True, color='gray')
-        axs[2,1].axvline(filters.threshold_otsu(y), ls='--') 
+        axs[2,1].set_title("Cropped + GF + Clipped to $\\pm 1$")
+        axs[2,0].imshow(z_clipped, cmap='gray')
+        axs[2,1].hist(z_clipped.ravel(), bins=256, density = True, color='gray')
+        axs[2,1].set_xlim(-1.1, +1.1)
 
-        for ii in range(3):
+        axs[3,0].imshow(y, cmap="gray")
+        axs[3,1].set_title("Cropped + GF + GMM posterior → $[-1,1]$")
+        axs[3,1].hist(y.ravel(), bins=256, density = True, color='gray')
+        axs[3,1].axvline(filters.threshold_otsu(y), ls='--') 
+        axs[3,1].set_xlim(-1.1, +1.1)
+
+        for ii in range(4):
             axs[ii, 1].grid(color = "gray")
+            axs[ii, 0].axes.get_xaxis().set_ticks([])
+            axs[ii, 0].axes.get_yaxis().set_ticks([])
 
         fig.tight_layout()
-        fig.savefig(f"{_FILE_PATH[:-4]}_comp.png", dpi = 300)
+        fig.savefig(_FILE_PATH.with_suffix(".png"), dpi = 300)
         plt.show()
-        plt.close()
+
+    if method == "raw":
+        return torch.from_numpy(roi.astype(np.float32))
+
+    if method == "standardize":
+        return torch.from_numpy(z.astype(np.float32))
+
+    if method == "clipped":
+        return torch.from_numpy(z_clipped.astype(np.float32))
 
     if method == "gmm":
         return torch.from_numpy(y.astype(np.float32))
@@ -138,6 +147,5 @@ def read_csv(_FILE_PATH, method : Literal["standardize","gmm"], PLOT = False, CL
 
 
 if __name__ == "__main__":
-
-    read_csv("data/data_01/csv/mcd_slice_000.csv", "gmm", PLOT = True)
+    read_csv(Path("data/expdata/data_00/csv/mcd_slice_001.csv"), "standardize", PLOT = True)
 

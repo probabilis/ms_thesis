@@ -36,11 +36,12 @@ if __name__ == "__main__":
     recording = args.recording
 
     # INPUT PATHs
-    INPUT_PATH = PATHS.BASE_INPUT
-    INPUT_FILE_PATH = INPUT_PATH / f"{dataset}/csv/mcd_slice_{recording}.csv"
+    INPUT_PATH = PATHS.BASE_EXPDATA
+
+    INPUT_FILE_PATH = PATHS.BASE_EXPDATA / f"{dataset}/csv/mcd_slice_{recording}.csv"
 
     # OUTPUT PATHs
-    OUTPUT_PATH = PATHS.PATH_EVALUATION / dataset
+    OUTPUT_PATH = PATHS.BASE_EXPDATA / dataset / "opt/"
     Path(OUTPUT_PATH).mkdir(parents=True, exist_ok=True)
 
     # ---------------------------------------------------------------
@@ -50,7 +51,7 @@ if __name__ == "__main__":
 
     gamma_ls = params_file[recording]
 
-    u_exp = read_csv(INPUT_FILE_PATH, "standardize")
+    u_exp = read_csv(INPUT_FILE_PATH, "standardize", PLOT = False)
 
     if u_exp.shape[0] != u_exp.shape[1]:
         raise ValueError("Experimental data should be quadratic (NxN tensor).")
@@ -72,24 +73,36 @@ if __name__ == "__main__":
     print_bars()
 
     _lambda = torch.std(u0)
+
     print(f"Learning Rate Lambda := std(u0) = {_lambda}")
     print_bars()
 
     plotting_style()
     fig, axs = plt.subplots( len(gamma_ls), 2, figsize = (6,3 * len(gamma_ls) ))
 
+    N_ticks = 4
+
     for ii, _gamma in enumerate(gamma_ls):
         print("Gamma: ", _gamma)
         labyrinth_data_params = replace(labyrinth_data_params, gamma = _gamma)
-        u, energies = gradient_descent_nesterov_evaluation(u0, u_exp, _lambda, LIVE_PLOT, DATA_LOG,**asdict(labyrinth_data_params),**asdict(ngd_sim_params), STOP_BY_TOL=True)
+        u, energies = gradient_descent_nesterov_evaluation(u0, u_exp, _lambda, LIVE_PLOT, DATA_LOG, OUTPUT_PATH, **asdict(labyrinth_data_params),**asdict(ngd_sim_params), STOP_BY_TOL=True)
         
         axs[ii, 0].imshow(u.cpu().numpy(), cmap='gray',origin="lower", extent=(0,1,0,1))
         axs[ii, 0].set_box_aspect(1)
         axs[ii, 0].set_title(f"$\\gamma = {_gamma}, \\lambda := std(u_0) = {_lambda:.2f}$")
-    
+        axs[ii, 0].axes.get_xaxis().set_ticks([])
+        axs[ii, 0].axes.get_yaxis().set_ticks([])
+
+
         axs[ii, 1].plot(np.arange(0,len(energies), 1), energies)
         axs[ii, 1].set_box_aspect(1)
         axs[ii, 1].set_title(f"$\\Sigma(N-10:-1) \\Delta E < 0.1$")
+        
+        ymin, ymax = axs[ii, 1].get_ylim()
+        xmin, xmax = axs[ii, 1].get_xlim()
+        axs[ii, 1].set_yticks(np.round(np.linspace(ymin, ymax, N_ticks), 2))
+        axs[ii, 1].set_xticks(np.round(np.linspace(xmin, xmax, N_ticks), 2))
+        
         print_bars()
     
     fig.tight_layout()

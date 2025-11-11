@@ -2,7 +2,7 @@
 ### Master Thesis *supervised by Prof. Martin Schultze and Prof. Thomas Pock*.
 
 ### Numerical optimization algorithms for simualating magnetic pattern formation
-### Various Gradient Descent methods & Adapted Crank Nicolson schematic re-implemented from Nicolas Condette: *Pattern Formation in Magnetic Thin Films: Analysis and Numerics*
+Various Gradient Descent methods + Adapted Crank Nicolson schematic re-implemented from Nicolas Condette: *Pattern Formation in Magnetic Thin Films: Analysis and Numerics*
 
 
 ## Code Structure:
@@ -45,7 +45,10 @@ Auxilliary scripts:
 - preprocessing.py script for right MCD calculation -> X
 
 ### Open:
-- Standardize plotting schematic + LaTex Font integration (still open: axis + latex font)
+#### High Priority:
 - Integrate data-savings for all algorithms (+ concurrent savings for let'say max_it/10 times)
+
+#### Low Priority:
 - Check runtimes by multiple runs to get an appropriate estimator -> runtime.py script
 - Check GD algorithm once for possible errors (such slow convergence)
+- Standardize plotting schematic + LaTex Font integration (still open: axis + latex font)

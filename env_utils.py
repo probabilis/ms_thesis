@@ -12,8 +12,8 @@ class PATHS:
 
     _BASE = Path() / 'data'
 
-    BASE_INPUT = _BASE / 'input'
-    BASE_OUTPUT = _BASE / 'output'
+    BASE_EXPDATA = _BASE / 'expdata'
+    BASE_OUTPUT = _BASE / 'tests'
 
     PATH_CN = BASE_OUTPUT / 'cn'
     PATH_GD = BASE_OUTPUT / 'gd'
