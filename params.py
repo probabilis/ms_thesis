@@ -82,6 +82,8 @@ epsilon = 1/20,
 gamma = 1/200
 )
 
+exp_data_params = replace(labyrinth_data_params, N = 664)
+
 # Sinus initial config data params
 sin_data_params = replace(labyrinth_data_params, gamma = 1/50)
 

@@ -33,7 +33,7 @@ def energy_value_with_data(gamma, epsilon, N, u, th, modk, modk2, c0,
 
 def gradient_descent_nesterov_evaluation(
     u0, u_exp, _lambda, LIVE_PLOT, DATA_LOG, OUTPUT_PATH, gridsize, N, th, gamma, epsilon, tau, c0,
-    num_iters, prox_newton_iters, tol_newton, STOP_BY_TOL = False, ENERGY_DIFF_STOP_TOL = 1e-1):
+    num_iters, prox_newton_iters, tol_newton, STOP_BY_TOL = False, ENERGY_DIFF_STOP_TOL = 1e-2):
     """
     Nesterov (FISTA-like) proximal gradient with adaptive restart,
     augmented by a quadratic data term (λ/2)||u - u_exp||^2.
@@ -58,7 +58,7 @@ def gradient_descent_nesterov_evaluation(
     energies_diff_sum_index = 10
 
     # plotting
-    if LIVE_PLOT or DATA_LOG:
+    if LIVE_PLOT:
         fig1, ax1 = plt.subplots(1,1, figsize=(5,5))
         fig2, ax2 = plt.subplots(1,1, figsize=(5,5))
         plt.ion()
@@ -104,9 +104,10 @@ def gradient_descent_nesterov_evaluation(
     except KeyboardInterrupt:
         print("Exit.")
 
-    if DATA_LOG or LIVE_PLOT:
-        plotting_schematic_eval(OUTPUT_PATH, ax1, fig1, ax2, fig2, u_curr, energies, N, num_iters, gamma, epsilon, _lambda, n) 
-        plt.ioff()
+    plt.ioff()
+
+    if DATA_LOG:
+        log_data(OUTPUT_PATH, u_curr, energies, N, num_iters, gamma, epsilon, _lambda)
 
     return u_curr, energies
 
@@ -116,7 +117,7 @@ if __name__ == "__main__":
 
     plotting_style()
     
-    INPUT_PATH = PATHS.BASE_INPUT
+    INPUT_PATH = PATHS.BASE_EXPDATA
     OUTPUT_PATH = PATHS.PATH_EVALUATION
 
     args = get_args()
@@ -125,7 +126,12 @@ if __name__ == "__main__":
 
     # ---------------------------------------------------------------
 
-    u_exp = read_csv("data/data_01/csv/mcd_slice_000.csv", "standardize")
+    dataset = "data_00"
+    recording = "003"
+
+    INPUT_FILE_PATH = PATHS.BASE_EXPDATA / f"{dataset}/csv/mcd_slice_{recording}.csv"
+
+    u_exp = read_csv(INPUT_FILE_PATH, "clipped")
 
     if u_exp.shape[0] != u_exp.shape[1]:
         raise ValueError("Experimental data should be quadratic (NxN tensor).")
@@ -153,7 +159,7 @@ if __name__ == "__main__":
 
     # ---------------------------------------------------------------
 
-    u, energies = gradient_descent_nesterov_evaluation(u0, u_exp, _lambda, LIVE_PLOT, DATA_LOG, OUTPUT_PATH,**asdict(labyrinth_data_params),**asdict(ngd_sim_params), STOP_BY_TOL=True)
+    u, energies = gradient_descent_nesterov_evaluation(u0, u_exp, _lambda, LIVE_PLOT, DATA_LOG, OUTPUT_PATH,**asdict(labyrinth_data_params),**asdict(ngd_sim_params), STOP_BY_TOL=True, ENERGY_DIFF_STOP_TOL=1e-1)
     
     fig, axs = plt.subplots(1,2) # , figsize = (8,8)
     axs[0].imshow(u.cpu().numpy(), cmap='gray',origin="lower", extent=(0,1,0,1))
@@ -165,7 +171,7 @@ if __name__ == "__main__":
     axs[1].set_title(f"$\\Sigma \\Delta E < 0.1$")
     #axs[1].set_yscale('log')
     fig.tight_layout()
-    plt.savefig(OUTPUT_PATH / f"evaluation_gamma={gamma}_lambda={_lambda:.2f}_num-iters={num_iters}.png", dpi = 300)
+    #plt.savefig(OUTPUT_PATH / f"evaluation_gamma={gamma}_lambda={_lambda:.2f}_num-iters={num_iters}.png", dpi = 300)
     plt.show()
 
     

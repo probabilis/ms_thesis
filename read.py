@@ -13,7 +13,14 @@ from typing import Literal
 
 from env_utils import plotting_style
 
+def standardize_shift(x):
 
+    x = (x - x.mean()) / x.std()          # standardized image
+    median = np.median(x)
+    x_new = np.empty_like(x)
+    x_new[x <= median] = x[x <= median] - 1
+    x_new[x >  median] = x[x >  median] + 1
+    return x_new
 
 def clean_domains(y, min_obj=100, min_hole=100, se_radius=2):
     """
@@ -61,23 +68,8 @@ def clean_domains(y, min_obj=100, min_hole=100, se_radius=2):
     return y_clean
 
 
-def read_csv(_FILE_PATH, method : Literal["raw","standardize","clipped","gmm"], PLOT = False, CLEAN_DOMAINS = False):
+def read_gmm(CLEAN_DOMAINS = False):
 
-    img = pd.read_csv(_FILE_PATH, header=None).values.astype(np.float32)
-    img[np.isnan(img)] = 0
-
-    # 1) remove background
-    hp = img - ndi.gaussian_filter(img, sigma=200)
-
-    # 2) crop ROI (your deltaN)
-    deltaN = 180
-    N = hp.shape[0]
-    roi = hp[deltaN:N-deltaN, deltaN:N-deltaN]
-
-    # 3) standardization 
-    m, s = np.median(roi), np.median(np.abs(roi - np.median(roi))) + 1e-6
-    z = (roi - m) / s
-    
     # 4) fit 2-component GMM on intensities
     x = z.reshape(-1,1)
     gm = GaussianMixture(n_components=2, covariance_type="full", n_init=5, random_state=0)
@@ -98,35 +90,68 @@ def read_csv(_FILE_PATH, method : Literal["raw","standardize","clipped","gmm"], 
         # 6) diagnostics
         y = clean_domains(y)
 
-    z_clipped = np.where(roi > 0, 1, -1)
+
+    fig, axs = plt.figure()
+
+    axs.imshow(y, cmap="gray",origin="lower", extent=(0,1,0,1))
+    axs[4,1].set_title("Cropped + GF + GMM posterior → $[-1,1]$")
+    axs[4,1].hist(y.ravel(), bins=256, density = True, color='gray')
+    axs[4,1].axvline(filters.threshold_otsu(y), ls='--') 
+    #axs[4,1].set_xlim(-5, +5)
+
+    return y
+
+
+def read_csv(_FILE_PATH, method : Literal["raw","standardize","shift", "clipped"], PLOT = False):
+
+    """
+    Plotting 4 different configurations of the experimental magnetic structure.
+
+    raw ... cropped image
+    standardize ... standardized image
+    clipped ... clipped image
+    shift ... shifted image
+    """
+
+    img = pd.read_csv(_FILE_PATH, header=None).values.astype(np.float32)
+    img[np.isnan(img)] = 0
+
+    # 2) crop ROI (your deltaN)
+    deltaN = 180
+    N = img.shape[0]
+    roi = img[deltaN:N-deltaN, deltaN:N-deltaN]
+
+    roi -= ndi.gaussian_filter(roi, sigma=200)
+
+    # 3) standardization 
+    m, s = np.median(roi), np.median(np.abs(roi - np.median(roi))) + 1e-6
+    img_standardize = (roi - m) / s
+
+    img_clipped = np.where(roi > 0, 1, -1)
+
+
+    
+    img_standardize_shift = standardize_shift(roi)
+
+    img_plot = [roi, img_standardize, img_standardize_shift, img_clipped]
+    img_titles = ["Raw MCD image (cropped to square)", "Standardized + Gaussian Filter (GF)", "Standardized + GF + Shifted", "GF + Clipped to $\\pm 1$"]
 
     if PLOT:
         plotting_style()
-        fig, axs = plt.subplots(4,2, figsize = (12,12))
 
-        axs[0,0].imshow(img, cmap='gray')
-        axs[0,1].set_title("MCD image")
-        axs[0,1].hist(img.ravel(), bins=256, density = True, color ='gray')
+        fig, axs = plt.subplots(len(img_plot), 2, figsize = (8,8))
 
-        axs[1,0].imshow(z, cmap='gray')
-        axs[1,1].set_title("Cropped + Standardized + Gaussian Filter (GF)")
-        axs[1,1].hist(z.ravel(), bins=256, density = True, color='gray')
+        for ii, img in enumerate(img_plot):
+            axs[ii, 0].imshow(img, cmap='gray',origin="lower", extent=(0,1,0,1))
+            axs[ii, 1].hist(img.ravel(), bins=256, density = True, color='gray')
+            axs[ii, 1].set_title(img_titles[ii])
 
-        axs[2,1].set_title("Cropped + GF + Clipped to $\\pm 1$")
-        axs[2,0].imshow(z_clipped, cmap='gray')
-        axs[2,1].hist(z_clipped.ravel(), bins=256, density = True, color='gray')
-        axs[2,1].set_xlim(-1.1, +1.1)
-
-        axs[3,0].imshow(y, cmap="gray")
-        axs[3,1].set_title("Cropped + GF + GMM posterior → $[-1,1]$")
-        axs[3,1].hist(y.ravel(), bins=256, density = True, color='gray')
-        axs[3,1].axvline(filters.threshold_otsu(y), ls='--') 
-        axs[3,1].set_xlim(-1.1, +1.1)
-
-        for ii in range(4):
             axs[ii, 1].grid(color = "gray")
             axs[ii, 0].axes.get_xaxis().set_ticks([])
             axs[ii, 0].axes.get_yaxis().set_ticks([])
+
+            if ii == 3:
+                axs[ii, 1].set_xlim(-1.2, +1.2)
 
         fig.tight_layout()
         fig.savefig(_FILE_PATH.with_suffix(".png"), dpi = 300)
@@ -136,14 +161,13 @@ def read_csv(_FILE_PATH, method : Literal["raw","standardize","clipped","gmm"], 
         return torch.from_numpy(roi.astype(np.float32))
 
     if method == "standardize":
-        return torch.from_numpy(z.astype(np.float32))
+        return torch.from_numpy(img_standardize.astype(np.float32))
 
     if method == "clipped":
-        return torch.from_numpy(z_clipped.astype(np.float32))
+        return torch.from_numpy(img_clipped.astype(np.float32))
 
-    if method == "gmm":
-        return torch.from_numpy(y.astype(np.float32))
-
+    if method == "shift":
+        return torch.from_numpy(img_standardize_shift.astype(np.float32))
 
 
 if __name__ == "__main__":

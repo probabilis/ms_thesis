@@ -45,10 +45,24 @@ Auxilliary scripts:
 - preprocessing.py script for right MCD calculation -> X
 
 ### Open:
-#### High Priority:
+#### High Priority:s
 - Integrate data-savings for all algorithms (+ concurrent savings for let'say max_it/10 times)
 
 #### Low Priority:
 - Check runtimes by multiple runs to get an appropriate estimator -> runtime.py script
 - Check GD algorithm once for possible errors (such slow convergence)
 - Standardize plotting schematic + LaTex Font integration (still open: axis + latex font)
+
+
+## Workflow:
+
+- `preprocessing.py` ... preprocess raw data
+- `read.py` ... read preprocessed data
+- `pattern_formation.py` ... run pattern formation algorithm
+- `evaluation_add.py` ... evaluate results
+
+
+### Information:
+
+- Black ... +1 
+- White ... -1

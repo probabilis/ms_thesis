@@ -55,20 +55,42 @@ class bcolors:
     UNDERLINE = '\033[4m'
 
 
-def get_filename(N, num_iters, gamma, epsilon):
-    return f"N={N}_nmax={num_iters}_gamma={gamma}_eps={epsilon}"
+def get_filename(N, num_iters, gamma, epsilon, _lambda = None):
+    if _lambda is not None:
+        return f"N={N}_nmax={num_iters}_gamma={gamma}_eps={epsilon}_lambda={_lambda:.2f}"
+    else:
+        return f"N={N}_nmax={num_iters}_gamma={gamma}_eps={epsilon}"
 
 
-def log_data(folder_path, u, energies, N, num_iters, gamma, epsilon):
+def log_data(folder_path, u, energies, N, num_iters, gamma, epsilon, _lambda = None):
 
-    file_name = get_filename(N, num_iters, gamma, epsilon)
+    file_name = get_filename(N, num_iters, gamma, epsilon, _lambda)
 
     df_energies = pd.DataFrame(energies)
     u_np = u.numpy()
     df_u = pd.DataFrame(u_np)
+
+    _path_1 = folder_path / f"{file_name}_energy_data.csv"
+    _path_2 = folder_path / f"{file_name}_pattern_data.csv"
     
-    df_energies.to_csv(folder_path / f"{file_name}_energy_data", index = False, header = False)
-    df_u.to_csv(folder_path / f"{file_name}_pattern_data", index = False, header = False)
+    df_energies.to_csv(_path_1, index = False, header = False)   
+    df_u.to_csv(_path_2, index = False, header = False)
+
+    print(f"Sucessfully saved data: \n {_path_1} \n {_path_2}.")
+
+
+
+def read_sim_dat_from_csv(folder_path, N, num_iters, gamma, epsilon, _lambda = None):
+
+    file_name = get_filename(N, num_iters, gamma, epsilon, _lambda)
+
+    _path_1 = folder_path / f"{file_name}_energy_data.csv"
+    _path_2 = folder_path / f"{file_name}_pattern_data.csv"
+
+    df_energies = pd.read_csv(_path_1, header = None)
+    df_u = pd.read_csv(_path_2, header = None)
+
+    return df_energies, df_u
 
 
 
