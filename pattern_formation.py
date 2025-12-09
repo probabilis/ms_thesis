@@ -34,8 +34,8 @@ def fourier_multiplier(A):
     large = (torch.abs(A) >= 1e-6)
     
     sig[zero_freq] = 1
-    sig[small] = 1 - np.pi * torch.abs(A[small])
-    sig[large] = (1 - torch.exp(-2 * np.pi * torch.abs(A[large]))) / (2 * np.pi * torch.abs(A[large]))
+    sig[small] = 1 - torch.pi * torch.abs(A[small])
+    sig[large] = (1 - torch.exp(-2 * torch.pi * torch.abs(A[large]))) / (2 * torch.pi * torch.abs(A[large]))
     
     return sig
 
@@ -89,7 +89,7 @@ def laplacian(u, dx):
 
 # ------------------------------------------------------------------
 
-def define_spaces(gridsize, N):
+def define_spaces(gridsize, N, LAPLACE_SPECTRAL = False):
     x = gridsize / N * torch.arange(N, dtype=dtype_real, device=device) # position array
     
     """
@@ -102,11 +102,21 @@ def define_spaces(gridsize, N):
 
     # -- k, x, xi, eta, modk & modk2 --
     #k = np.concatenate([np.arange(0, N // 2), np.arange(-N // 2, 0)])
-    k = torch.cat([torch.arange(0, N // 2, dtype=dtype_real, device = device), torch.arange(-N // 2, 0, dtype=dtype_real, device = device)])
+    
+    # torch.arange(-N // 2 + 1, 1) ... # +[0..+N,-N..0]
+    
+    #k = torch.cat([torch.arange(0, N // 2, dtype=dtype_real, device = device), torch.arange(-N // 2, 0, dtype=dtype_real, device = device)])
+    h = gridsize / N
+    if LAPLACE_SPECTRAL:
+        k = torch.fft.fftfreq(N, d=h).to(device)
+    else:
+        k = torch.fft.fftfreq(N, d=h).to(device) * 2 * torch.pi
+    print("k", k)
 
     xi, eta = torch.meshgrid(k, k, indexing='ij')
     modk2 = (xi ** 2 + eta ** 2).to(dtype_real)
     modk = torch.sqrt(modk2).to(dtype_real)
+    
     return x, k, modk, modk2
 
 # ------------------------------------------------------------------
@@ -186,9 +196,14 @@ def initialize_u0_sin(N, x, noise_level = 0.01):
 
 def grad_g(u, M_k):
     # gradient of g(u) via spectral multiplication
+    # 
+    # grad_g = iFFT[ ( FM(|k|) + gamma*eps*|k|² ) * FFT(u) ] 
+    #
+    #Fu = torch.fft.fft2(u, norm='ortho') 
     Fu = fft2_real(u)
     grad_hat = M_k * Fu
     return ifft2_real(grad_hat)
+    #return torch.fft.ifft2(M_k * Fu, norm='ortho').real
 
 # ------------------------------------------------------------------
 
@@ -197,7 +212,7 @@ def grad_fd_mix(u, sigma_k, N, gamma, epsilon, c0):
 
     # Local FD gradient (–γ ε Δu)
     lap = laplacian(u, dx)
-    grad_loc = -(gamma * epsilon) * lap
+    grad_loc = -(gamma * epsilon) * lap #* 0.1
 
     # Nonlocal gradient (σ_k * Fu)
     Fu = torch.fft.fft2(u, norm='ortho')

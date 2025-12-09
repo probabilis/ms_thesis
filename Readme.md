@@ -62,7 +62,12 @@ Auxilliary scripts:
 - `evaluation_add.py` ... evaluate results
 
 
-### Information:
+## Information:
 
 - Black ... +1 
 - White ... -1
+
+## ToDo:
+- Integrate seperate dataclasses for Spectral / Non-Spectral Simulation for GD Nesterov
+- Comparison for non-dx / dx simulation
+- Graphical representation

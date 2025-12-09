@@ -15,7 +15,7 @@ if __name__ == "__main__":
 
     plotting_style()
 
-    PLOT_HIST = True
+    PLOT_HIST = False
     PLOT_DIFF_COMPARISON = True
     PLOT_ENERGY_CONVERGENCE_COMPARISON = False
 
@@ -27,9 +27,9 @@ if __name__ == "__main__":
 
     INPUT_PATH = PATHS.BASE_EXPDATA
 
-    colors = ['gray', 'gray', 'berlin']
+    colors = ['gray', 'gray', 'viridis']
     colors_hist = ['black', 'black', 'cornflowerblue']
-    titles = ["raw recording $u_{exp}$", "optimized $u_{opt}$", "RMSE $|u_{exp} - u_{opt}|^2$"]        
+    titles = ["raw recording $u_{exp}$", "optimized $u_{opt}$", "if $u_{opt}^{ij} < tol \\rightarrow \\alpha + u_{exp}$"]        # "RMSE $|u_{exp} - u_{opt}|^2$"
 
     # ---------------------------------------------------------------
 
@@ -45,27 +45,52 @@ if __name__ == "__main__":
     gridsize, N, th, epsilon, gamma = get_DataParameters(exp_data_params)
 
 
-    for read_type in read_types[0:1]:
+    def blue_ratio_blocks(u_exp, u_sim, tol=0.25, block_size=16):
+        """
+        Computes blue ratios inside domain walls for local blocks.
+        Returns an array of ratios (one per block).
+        """
+        h, w = u_exp.shape
+        ratios = []
+
+        for i in range(0, h - block_size + 1, block_size):
+            for j in range(0, w - block_size + 1, block_size):
+                ue = u_exp[i:i+block_size, j:j+block_size]
+                us = u_sim[i:i+block_size, j:j+block_size]
+
+                domain_mask = np.abs(us) <= tol
+                if domain_mask.sum() == 0:
+                    continue
+
+                blue = (ue > 0) & domain_mask
+                ratios.append(blue.sum() / domain_mask.sum())
+
+        return np.array(ratios)
+
+    def u_overlap(u_sim, u_exp, tol = 0.25):                    
+        #diff = torch.abs(u_exp - u_sim) ** 2 * 0.5
+        #diff = standardize_shift(diff)
+        #new = np.where(np.abs(u_sim) > tol, 0, np.nan)
+        new = torch.where(torch.abs(u_sim) < tol, 10, u_sim)
+        #new = torch.from_numpy(new.astype(np.float32))
+        return u_exp + new
+
+    for read_type in read_types:
         print("Reading type: ", read_type)
         OUTPUT_PATH = PATHS.BASE_EXPDATA / dataset / "opt" / recording / ENERGY_DIFF_STOP_TOL / read_type
-        u_exp = read_csv(INPUT_PATH / f"{dataset}/csv/mcd_slice_{recording}.csv", "clipped")
+        u_exp = read_csv(INPUT_PATH / f"{dataset}/csv/mcd_slice_{recording}.csv", read_type)
 
         if PLOT_HIST:
             for gamma in gamma_ls:
                 for _lambda in _lambda_ls:
                     
                     df_energies, u_sim = read_sim_dat_from_csv(OUTPUT_PATH, N, num_iters, gamma, epsilon, _lambda)
-                    u_sim = np.array(u_sim.values)
+                    u_sim = torch.tensor(u_sim.values)
+                    print(type(u_sim))
 
-                    #diff = torch.abs(u_exp - u_sim) ** 2 * 0.5
-                    #diff = standardize_shift(diff)
+                    u_plot = [u_exp, u_sim, u_overlap(u_sim, u_exp) ]
 
-                    tol = 0.25
-                    new = np.where(np.abs(u_sim) > tol, 0, np.nan)
-                    new = torch.from_numpy(new.astype(np.float32))
-                    diff = u_exp + new
-
-                    u_plot = [u_exp, u_sim, diff]
+                    ratios = blue_ratio_blocks(u_exp, u_sim, tol=0.25, block_size=16)
 
                     fig, axs = plt.subplots( 3, 2, figsize = (8,8))
 
@@ -76,8 +101,11 @@ if __name__ == "__main__":
                         axs[ii, 0].axes.get_yaxis().set_ticks([])
                         axs[ii, 0].set_title(titles[ii])
 
-                        if ii is not 2:
+                        if ii != 2:
                             axs[ii, 1].hist(u.ravel(), bins=256, density = True, color=colors_hist[ii])
+                        else:
+                            axs[ii, 1].hist(ratios, bins = 40, density = True)
+                        
                         axs[ii, 1].set_xlabel("$u_{ij}$")
                         #axs[ii, 1].set_ylabel("norm. sample distribution $p(u_{ij})$")
                         axs[ii, 1].set_ylabel("$p(u_{ij})$")
@@ -96,13 +124,9 @@ if __name__ == "__main__":
 
                     df_energies, u_sim = read_sim_dat_from_csv(OUTPUT_PATH, N, num_iters, gamma, epsilon, _lambda)
 
-                    u_sim = np.array(u_sim.values)
-                    tol = 0.25
-                    new = np.where(np.abs(u_sim) > tol, 0, np.nan)
-                    new = torch.from_numpy(new.astype(np.float32))
-                    diff = u_exp + new
+                    u_sim = torch.tensor(u_sim.values)
                     
-                    im = axs[ii, jj].imshow(diff, cmap= "berlin", origin="lower", extent=(0,1,0,1))
+                    im = axs[ii, jj].imshow(u_overlap(u_sim, u_exp), cmap= "viridis", origin="lower", extent=(0,1,0,1))
                     axs[ii, jj].set_box_aspect(1)
                     axs[ii, jj].axes.get_xaxis().set_ticks([])
                     axs[ii, jj].axes.get_yaxis().set_ticks([])
@@ -133,7 +157,7 @@ if __name__ == "__main__":
             
             plt.colorbar(im)
             plt.savefig(OUTPUT_PATH / f"recording={recording}_postprocessing_overview_{read_type}.png")
-            plt.show()
+            #plt.show()
 
         if PLOT_ENERGY_CONVERGENCE_COMPARISON:
             

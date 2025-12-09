@@ -118,7 +118,7 @@ def different_image_preprocessings(labyrinth_data_params, ngd_sim_params, SIMULA
                 axs[ii, 2*kk + 1].set_box_aspect(1)
                 
                 if ii == 0:
-                    axs[ii, 2*kk + 1].set_title(f"$\\Sigma(N-10:-1) \\Delta E < {ENERGY_DIFF_STOP_TOL}$")
+                    axs[ii, 2*kk + 1].set_title(f"$\\Sigma(N-10:-1) \\Delta E < {ENERGY_DIFF_STOP_TOL   }$")
                 
                 ymin, ymax = axs[ii, 2*kk + 1].get_ylim()
                 xmin, xmax = axs[ii, 2*kk + 1].get_xlim()

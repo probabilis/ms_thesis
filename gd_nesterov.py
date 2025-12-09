@@ -14,24 +14,31 @@ from pattern_formation import energy_value_fd_mix, grad_fd_mix
 
 # ---------------------------------------------------------------
 
+
 def gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamma, epsilon, tau, c0, num_iters, prox_newton_iters, tol_newton, STOP_BY_TOL = False, ENERGY_STOP_TOL = 1e-6):
     # Nesterov proximal gradient with adaptive restart
 
     # --- spaces ---
     LAPLACE_SPECTRAL = True
-
-    STANDARD_SPACE = True
     
-    if STANDARD_SPACE:
-        x, k, modk, modk2 = define_spaces(gridsize, N)
-    else:
-        x, k, modk, modk2 = define_spaces_adapted(gridsize, N)
-
-
-    sigma_k = fourier_multiplier(th * modk).to(dtype_real).to(device)
     
+    if LAPLACE_SPECTRAL:
+        gamma = 0.002
+        epsilon = 0.05
+        x, k, modk, modk2 = define_spaces(gridsize, N, LAPLACE_SPECTRAL)
+        energies = [energy_value(gamma, epsilon, N, u0, th, modk, modk2, c0)]
+        sigma_k = fourier_multiplier(th * modk).to(dtype_real).to(device)
+        
+    else:        
+        gamma = 0.0002
+        epsilon = 0.02
+        x, k, modk, modk2 = define_spaces(gridsize, N, LAPLACE_SPECTRAL)
+        sigma_k = fourier_multiplier(th * modk).to(dtype_real).to(device)
+        energies = [energy_value_fd_mix(u0, sigma_k, N, gamma, epsilon, c0)]
+    
+
     # M_k for spectral calculation of LAPLACE
-    M_k = sigma_k + gamma * epsilon * modk2
+    M_k = sigma_k + gamma * epsilon * modk2 
 
     # --- initialization ---
     u_prev = u0.clone()
@@ -45,11 +52,9 @@ def gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N,
         plt.ion()
 
     # energy history (first energy at initial condition)
-    
-    if LAPLACE_SPECTRAL:
-        energies = [energy_value(gamma, epsilon, N, u0, th, modk, modk2, c0)]
-    else:
-        energies = [energy_value_fd_mix(u0, sigma_k, N, gamma, epsilon, c0)]
+
+    #tau = tau / 100
+    print("tau", tau)
 
     # --- main loop ---
     try:
@@ -83,7 +88,7 @@ def gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N,
             energy_diff = energies[-1] - E
             energies.append(E)
 
-            if (n % 100) == 0 and LIVE_PLOT:
+            if (n % 1000) == 0 and LIVE_PLOT:
                 plotting_schematic(FOLDER_PATH, ax1, fig1, ax2, fig2, u_curr, energies, N, num_iters, gamma, epsilon, n)
                 plt.pause(1)
 
@@ -111,8 +116,11 @@ if __name__ == "__main__":
     args = get_args()
     LIVE_PLOT = args.live_plot
     DATA_LOG = args.data_log
+    from dataclasses import replace 
+    labyrinth_data_params = replace(labyrinth_data_params, N = 64)
 
     gridsize, N, th, epsilon, gamma = get_DataParameters(labyrinth_data_params)
+    N = 64
     u0 = initialize_u0_random(N, REAL = True)
     
     print_bars()

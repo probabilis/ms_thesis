@@ -11,9 +11,9 @@ from params import labyrinth_data_params, gd_sim_params, get_DataParameters, get
 
 # ---------------------------------------------------------------  
 
-def gradient_descent(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamma, epsilon, c0, alpha, num_iters, STOP_BY_TOL = True, ENERGY_STOP_TOL = 1e-6):
+def gradient_descent(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamma, epsilon, c0, alpha, num_iters, STOP_BY_TOL = True, ENERGY_STOP_TOL = 1e-9):
 
-    LAPLACE_SPECTRAL = False
+    LAPLACE_SPECTRAL = True
 
     x, k, modk, modk2 = define_spaces(gridsize, N)
 
@@ -31,18 +31,30 @@ def gradient_descent(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamm
         fig2, ax2 = plt.subplots(figsize = (10,10))
         plt.ion()
 
-
-    M_k = sigma_k + gamma * epsilon * modk2
-
+    M_k = sigma_k + gamma * epsilon * modk2 * (2*torch.pi)**2
     Ls = float(M_k.max().cpu().item())
     
-    alpha = 1e-4 * 2/Ls
+    """
+    
+    for spectral: 
+        gamma = 0.08 for lower boundary
+        alpha = 2/Ls * 1e-3
+
+    for dx:
+        gamma = 
+        alpha = 2/Ls * 1e-3 * 0.5
+    """
+
+    gamma = 0.005
+    
+    #alpha = 2/Ls * 1e-3 # * 0.5
+    alpha = 2/Ls
     print("Lipschitz constant",Ls)
     print("alpha: ", alpha)
 
     energies_diff_sum_index = 10
     energies_diff = []
-    ENERGY_DIFF_STOP_TOL = 1e-6
+    ENERGY_DIFF_STOP_TOL = 1e-9
 
     for ii in tqdm(range(num_iters), desc="GD"):
         if LAPLACE_SPECTRAL:
@@ -68,6 +80,7 @@ def gradient_descent(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamm
             curr_energy = energy_value_fd_mix(u, sigma_k, N, gamma, epsilon, c0)
 
         energy_diff = energies[-1] - curr_energy
+        print("dE", energy_diff)
         energies.append(curr_energy)
         energies_diff.append(abs(energy_diff))
 
@@ -211,7 +224,8 @@ if __name__ == "__main__":
     print(labyrinth_data_params)
     print(gd_sim_params)
     print_bars()
-    #gradient_descent_backtracking(u, LIVE_PLOT, DATA_LOG, FOLDER_PATH, **asdict(labyrinth_data_params), num_iters=500_000, c0 = 9/32)
-    gradient_descent(u, LIVE_PLOT, DATA_LOG, FOLDER_PATH, **asdict(labyrinth_data_params), **asdict(gd_sim_params))
+    #time.sleep(100)
+    gradient_descent_backtracking(u, LIVE_PLOT, DATA_LOG, FOLDER_PATH, **asdict(labyrinth_data_params), num_iters=500_000, c0 = 9/32)
+    #gradient_descent(u, LIVE_PLOT, DATA_LOG, FOLDER_PATH, **asdict(labyrinth_data_params), **asdict(gd_sim_params))
 
     
