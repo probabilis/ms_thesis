@@ -24,7 +24,23 @@ Evaluation scripts:
 
 Auxilliary scripts:
 - `preprocessing.py`        ... Raw *.TIF data reader and MCD pre-processing -> to *.CSV
-- `read.py`                 ... CSV-Reader Method
+- `read.py`    
+
+
+## Workflow:
+
+- `preprocessing.py` ... preprocess raw data
+- `read.py` ... read preprocessed data
+- `pattern_formation.py` ... run pattern formation algorithm
+- `evaluation_add.py` ... evaluate results             ... CSV-Reader Method
+
+
+## Information:
+Magnetic Image mapping:
+
+- Black ... +1 
+- White ... -1
+
 
 ## ToDo's:
 
@@ -40,34 +56,46 @@ Auxilliary scripts:
 - Implement comparison.py script -> X
 - Integrate function dataclasses asdict for main methods -> X
 - comparison.py: plot all u's after e.g.: 1000 iterations -> X
-- Check all scripts for loop efficiency & parallelization for Torch module -> X
+- Check all scripts for loop efficiency & parallelization from Torch module -> X
 - Revisited read.py for data-reading (exp. recordings) -> X
 - preprocessing.py script for right MCD calculation -> X
+- Integration of new MCD PreProcessing class        -> X
+    - Read PIL Image to Tensor
+    - Compute MCD 
+    - Save as CSV for Post-Reading Simulations
+- Preprocessing -> Reading -> Evaluation (params.json) -> Postprocessing -> X
+- Lipschitz constant calculation    ->  X   
+- Finite Difference / Fourier method calculation -> X
+- Initial File Reading methods (Raw, Standardized, Stand.+ Shift, Clipped)  -> X
+- Experimental Data Results             -> X
+- Fourier Modes                         -> X
+- Master thesis Chapter Allignment      -> X
+- Check Energy convergence with exp. data -> X
+- Comparison for non-dx / dx simulation -> X
+- Make power law estimator plot          -> X
+- Implement asymptotic evolution (Condette page 75) -> X
+- Check GD algorithm once for possible errors (such slow convergence) -> X
+
+
+
 
 ### Open:
-#### High Priority:s
-- Integrate data-savings for all algorithms (+ concurrent savings for let'say max_it/10 times)
+#### High Priority:
+
+- Check Lipshitz constant -> implement in GD for rerun + autograd check once again
+- Integrate data-savings for all algorithms 
+- simulation evolution / concurrent savings for let'say max_it/10 times
+- single domain evolution
 
 #### Low Priority:
 - Check runtimes by multiple runs to get an appropriate estimator -> runtime.py script
-- Check GD algorithm once for possible errors (such slow convergence)
 - Standardize plotting schematic + LaTex Font integration (still open: axis + latex font)
 
 
-## Workflow:
-
-- `preprocessing.py` ... preprocess raw data
-- `read.py` ... read preprocessed data
-- `pattern_formation.py` ... run pattern formation algorithm
-- `evaluation_add.py` ... evaluate results
 
 
-## Information:
 
-- Black ... +1 
-- White ... -1
 
-## ToDo:
-- Integrate seperate dataclasses for Spectral / Non-Spectral Simulation for GD Nesterov
-- Comparison for non-dx / dx simulation
-- Graphical representation
+
+
+

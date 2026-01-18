@@ -15,8 +15,9 @@ from read import read_csv
 
 def grad_g_with_data(u, M_k, N, _lambda, u_exp):
     """Gradient of smooth part = spectral linear term + quadratic data term."""
-    Fu = torch.fft.fft2(u) / (N**2)
-    grad_lin = torch.fft.ifft2(M_k * Fu).real * (N**2)
+    #Fu = torch.fft.fft2(u) / (N**2)
+    Fu = torch.fft.fft2(u, norm='ortho')
+    grad_lin = torch.fft.ifft2(M_k * Fu, norm='ortho').real #* (N**2)
     grad_data = _lambda * (u - u_exp)
     return grad_lin + grad_data
 
@@ -24,7 +25,7 @@ def energy_value_with_data(gamma, epsilon, N, u, th, modk, modk2, c0,
                            _lambda, u_exp):
     """Total energy = labyrinth functional + L2 data fidelity."""
     E_base = energy_value(gamma, epsilon, N, u, th, modk, modk2, c0)
-    E_data = 0.5 * _lambda * torch.sum((u - u_exp)**2)
+    E_data = 0.5 * _lambda * torch.sum((u - u_exp)**2) / N**2
     return (E_base + E_data).item()
 
 # -----------------------------
@@ -33,14 +34,15 @@ def energy_value_with_data(gamma, epsilon, N, u, th, modk, modk2, c0,
 
 def gradient_descent_nesterov_evaluation(
     u0, u_exp, _lambda, LIVE_PLOT, DATA_LOG, OUTPUT_PATH, gridsize, N, th, gamma, epsilon, tau, c0,
-    num_iters, prox_newton_iters, tol_newton, STOP_BY_TOL = False, ENERGY_DIFF_STOP_TOL = 1e-2):
+    num_iters, prox_newton_iters, tol_newton, STOP_BY_TOL = False, ENERGY_DIFF_STOP_TOL = 1e-6):
     """
     Nesterov (FISTA-like) proximal gradient with adaptive restart,
     augmented by a quadratic data term (λ/2)||u - u_exp||^2.
     """
 
     # --- spaces ---
-    x, k, modk, modk2 = define_spaces(gridsize, N)
+
+    x, k, modk, modk2 = define_spaces(gridsize, N, LAPLACE_SPECTRAL=True)
     sigma_k = fourier_multiplier(th * modk).to(dtype_real).to(device)
     M_k = sigma_k + gamma * epsilon * modk2
 
@@ -59,9 +61,10 @@ def gradient_descent_nesterov_evaluation(
 
     # plotting
     if LIVE_PLOT:
+        plt.ion()
         fig1, ax1 = plt.subplots(1,1, figsize=(5,5))
         fig2, ax2 = plt.subplots(1,1, figsize=(5,5))
-        plt.ion()
+        
 
     try:
         for n in tqdm(range(1, num_iters+1), desc="Nesterov GD for Data"):
@@ -89,7 +92,7 @@ def gradient_descent_nesterov_evaluation(
             energies.append(E)
             energies_diff.append(abs(energy_diff))
 
-            if (n % 10) == 0 and LIVE_PLOT:
+            if (n % 100) == 0 and LIVE_PLOT:
                 plotting_schematic_eval(OUTPUT_PATH, ax1, fig1, ax2, fig2, u_curr, energies, N, num_iters, gamma, epsilon, _lambda, n)
                 plt.pause(1)
 
@@ -103,6 +106,7 @@ def gradient_descent_nesterov_evaluation(
 
     except KeyboardInterrupt:
         print("Exit.")
+        plt.close()
 
     plt.ioff()
 
@@ -131,7 +135,7 @@ if __name__ == "__main__":
 
     INPUT_FILE_PATH = PATHS.BASE_EXPDATA / f"{dataset}/csv/mcd_slice_{recording}.csv"
 
-    u_exp = read_csv(INPUT_FILE_PATH, "clipped")
+    u_exp = read_csv(INPUT_FILE_PATH, "clipped", PLOT = True)
 
     if u_exp.shape[0] != u_exp.shape[1]:
         raise ValueError("Experimental data should be quadratic (NxN tensor).")
@@ -159,7 +163,7 @@ if __name__ == "__main__":
 
     # ---------------------------------------------------------------
 
-    u, energies = gradient_descent_nesterov_evaluation(u0, u_exp, _lambda, LIVE_PLOT, DATA_LOG, OUTPUT_PATH,**asdict(labyrinth_data_params),**asdict(ngd_sim_params), STOP_BY_TOL=True, ENERGY_DIFF_STOP_TOL=1e-1)
+    u, energies = gradient_descent_nesterov_evaluation(u0, u_exp, _lambda, LIVE_PLOT, DATA_LOG, OUTPUT_PATH,**asdict(labyrinth_data_params),**asdict(ngd_sim_params), STOP_BY_TOL=True)
     
     fig, axs = plt.subplots(1,2) # , figsize = (8,8)
     axs[0].imshow(u.cpu().numpy(), cmap='gray',origin="lower", extent=(0,1,0,1))

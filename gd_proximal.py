@@ -34,7 +34,6 @@ def gradient_descent_proximal(u, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, 
             # backward/prox step: solve pointwise prox
             u = prox_h(v, tau, gamma=gamma, eps=epsilon, c0=c0,maxiter=prox_newton_iters, tol=tol_newton)
 
-            # u = torch.clamp(u, -10.0, 10.0) # keep u within reasonable bounds to avoid blowup
             try:
                 E = energy_value(gamma, epsilon, N, u, th, modk, modk2, c0)
             except Exception as e:
@@ -48,6 +47,7 @@ def gradient_descent_proximal(u, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, 
                 plt.pause(1)
 
             if STOP_BY_TOL and energy_diff < ENERGY_STOP_TOL:
+                print("dE[ii-1,ii]", abs(energy_diff) )
                 break
 
     except KeyboardInterrupt:

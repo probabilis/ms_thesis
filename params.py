@@ -49,6 +49,15 @@ class GD_SimulationParameters:
 
 # ----------------------------------------- #
 
+@dataclass
+class SimulationConfig:
+    LAPLACE_SPECTRAL : bool
+    STOP_BY_TOL : bool
+    ENERGY_STOP_TOL : bool
+
+
+# ----------------------------------------- #
+
 
 def get_DataParameters(dp : Optional[DataParameters]):
     #print_data_class(dp)
@@ -78,7 +87,7 @@ labyrinth_data_params = DataParameters(
 gridsize = 1,
 N = 128,
 th = 1.0,
-epsilon = 1/20,
+epsilon = 1/50,
 gamma = 1/200
 )
 
@@ -118,3 +127,8 @@ c0 = 9/32)
 
 # ----------------------------------------- #
 
+sim_config = SimulationConfig(
+    LAPLACE_SPECTRAL = False,
+    STOP_BY_TOL = True,
+    ENERGY_STOP_TOL = 1e-10
+)

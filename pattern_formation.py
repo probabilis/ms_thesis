@@ -89,32 +89,20 @@ def laplacian(u, dx):
 
 # ------------------------------------------------------------------
 
-def define_spaces(gridsize, N, LAPLACE_SPECTRAL = False):
+def define_spaces(gridsize, N):
     x = gridsize / N * torch.arange(N, dtype=dtype_real, device=device) # position array
     
-    """
-    k_scaled = False
-    if k_scaled:
-        k = torch.fft.fftfreq(N, d = 1/N).to(device) * 2 * torch.pi # FFT frequencies scaled
-    else:
-        k = torch.fft.fftfreq(N, d = 1/N).to(device) 
-    """
-
-    # -- k, x, xi, eta, modk & modk2 --
+    # -- k, x, kx, ky, modk & modk2 --
     #k = np.concatenate([np.arange(0, N // 2), np.arange(-N // 2, 0)])
-    
     # torch.arange(-N // 2 + 1, 1) ... # +[0..+N,-N..0]
-    
     #k = torch.cat([torch.arange(0, N // 2, dtype=dtype_real, device = device), torch.arange(-N // 2, 0, dtype=dtype_real, device = device)])
-    h = gridsize / N
-    if LAPLACE_SPECTRAL:
-        k = torch.fft.fftfreq(N, d=h).to(device)
-    else:
-        k = torch.fft.fftfreq(N, d=h).to(device) * 2 * torch.pi
-    print("k", k)
 
-    xi, eta = torch.meshgrid(k, k, indexing='ij')
-    modk2 = (xi ** 2 + eta ** 2).to(dtype_real)
+    h = gridsize / N
+    k = torch.fft.fftfreq(N, d=h).to(device) * 2 * torch.pi
+
+    kx, ky = torch.meshgrid(k, k, indexing='ij')
+    
+    modk2 = (kx**2 + ky**2).to(dtype_real)
     modk = torch.sqrt(modk2).to(dtype_real)
     
     return x, k, modk, modk2
@@ -122,18 +110,8 @@ def define_spaces(gridsize, N, LAPLACE_SPECTRAL = False):
 # ------------------------------------------------------------------
 
 def define_spaces_adapted(gridsize, N):
-    x = gridsize / N * torch.arange(N, dtype=dtype_real, device=device) # position array
     
-    """
-    k_scaled = False
-    if k_scaled:
-        k = torch.fft.fftfreq(N, d = 1/N).to(device) * 2 * torch.pi # FFT frequencies scaled
-    else:
-        k = torch.fft.fftfreq(N, d = 1/N).to(device) 
-    """
-
-    # -- k, x, xi, eta, modk & modk2 --
-    #k = np.concatenate([np.arange(0, N // 2), np.arange(-N // 2, 0)])
+    x = gridsize / N * torch.arange(N, dtype=dtype_real, device=device) # position array
 
     SCALING_FACTOR = 1
 
@@ -178,7 +156,6 @@ def initialize_u0_image(file_path):
     image = Image.open(file_path).convert('L')
     np_array = np.array(image)
     u0 = torch.from_numpy(np_array).float() / 255.0  # PyTorch tensor -> normalize to [0.0, 1.0]
-    #print(u0.shape)
     return u0
 
 # ------------------------------------------------------------------
@@ -195,23 +172,22 @@ def initialize_u0_sin(N, x, noise_level = 0.01):
 # ------------------------------------------------------------------
 
 def grad_g(u, M_k):
-    # gradient of g(u) via spectral multiplication
-    # 
-    # grad_g = iFFT[ ( FM(|k|) + gamma*eps*|k|² ) * FFT(u) ] 
-    #
-    #Fu = torch.fft.fft2(u, norm='ortho') 
-    Fu = fft2_real(u)
-    grad_hat = M_k * Fu
-    return ifft2_real(grad_hat)
-    #return torch.fft.ifft2(M_k * Fu, norm='ortho').real
+    """
+    gradient of g(u) via spectral multiplication 
+    grad_g = iFFT[ ( FM(|k|) + gamma*eps*|k|² ) * FFT(u) ] 
+    """
+    Fu = torch.fft.fft2(u, norm='ortho') # should work
+    return torch.fft.ifft2(M_k * Fu, norm='ortho').real
 
 # ------------------------------------------------------------------
 
-def grad_fd_mix(u, sigma_k, N, gamma, epsilon, c0):
-    dx = 1.0 / N
+def grad_fd(u, sigma_k, N, gridsize, gamma, epsilon, c0):
+    """
+    Gradient of Energy functional with Finite Difference method
+    """
 
     # Local FD gradient (–γ ε Δu)
-    lap = laplacian(u, dx)
+    lap = laplacian(u, gridsize/N)
     grad_loc = -(gamma * epsilon) * lap #* 0.1
 
     # Nonlocal gradient (σ_k * Fu)
@@ -225,38 +201,42 @@ def grad_fd_mix(u, sigma_k, N, gamma, epsilon, c0):
 
 # ------------------------------------------------------------------
 
-def energy_value_fd_mix(u, sigma_k, N, gamma, epsilon, c0):
-    # local FD energy
-
-    dx = 1.0 / N
+def energy_value_fd(u, sigma_k, N, gamma, epsilon, c0):
+    """
+    Energy functional with finite difference
+    """
 
     ux = u - torch.roll(u, 1, 0)
     uy = u - torch.roll(u, 1, 1)
 
-    E_loc = 0.5 * (gamma * epsilon) * torch.sum(ux*ux + uy*uy) / (dx**2)
+    # local gradient energy
+    E_loc = 0.5 * (gamma * epsilon) * torch.sum(ux*ux + uy*uy) / (N**2)
 
-    # nonlocal Fourier energy (same normalization as your code)
+    # nonlocal Fourier energy
     ftu = torch.fft.fft2(u) / (N**2)
-    # Fu = torch.fft.fft2(u, norm='ortho')
     E_nl = 0.5 * torch.sum(sigma_k * torch.abs(ftu)**2)
 
     # double-well energy
-    W = c0 * (1 - u*u)**2
-    E_dw = (gamma / epsilon) * torch.sum(W)
+    W = double_well_potential(u, c0)
+    E_dw = (gamma / epsilon) * torch.sum(W) / N**2
 
     return (E_loc + E_nl + E_dw).item()
 
 # ------------------------------------------------------------------
 
 def energy_value(gamma, epsilon, N, u, th, modk, modk2, c0):
+    """
+    E = DW + LaPlace + FM
+    """
     DEBUG = False
 
     W = double_well_potential(u, c0)
-    ftu = torch.fft.fft2(u) / (N ** 2)
-    S = fourier_multiplier(th * modk)
+    ftu = torch.fft.fft2(u) / N**2
+    #S = fourier_multiplier(th * modk)
+    S = fourier_multiplier(th * modk).to(dtype_real).to(device)
 
-    energy = (gamma / epsilon) * torch.sum(W) / (N ** 2)
-    energy += 0.5 * torch.sum((S + gamma * epsilon * modk2) * torch.abs(ftu) ** 2)
+    energy = (gamma / epsilon) * torch.sum(W) / N**2
+    energy += 0.5 * torch.sum( (S + gamma * epsilon * modk2) * torch.abs(ftu)**2 )
 
     if DEBUG:
         print('max modk:', torch.max(modk).item())

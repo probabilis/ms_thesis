@@ -4,16 +4,17 @@ import matplotlib.pyplot as plt
 from scipy.ndimage import gaussian_filter
 from dataclasses import asdict, replace
 
-from pattern_formation import define_spaces, fourier_multiplier, dtype_real, device, energy_value, energy_value_fd_mix, grad_g, double_well_prime, grad_fd_mix, energy_tensor, initialize_u0_random
+from pattern_formation import define_spaces, fourier_multiplier, dtype_real, device, energy_value, energy_value_fd, grad_g, double_well_prime, grad_fd, energy_tensor, initialize_u0_random
 from env_utils import PATHS,print_bars, get_args, plotting_style, plotting_schematic, log_data
 
 from params import labyrinth_data_params, gd_sim_params, get_DataParameters, get_SimulationParamters
 
 # ---------------------------------------------------------------  
 
-def gradient_descent(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamma, epsilon, c0, alpha, num_iters, STOP_BY_TOL = True, ENERGY_STOP_TOL = 1e-9):
+def gradient_descent(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamma, epsilon, c0, alpha, num_iters, LAPLACE_SPECTRAL = None, STOP_BY_TOL = True, ENERGY_STOP_TOL = 1e-12):
 
-    LAPLACE_SPECTRAL = True
+    if LAPLACE_SPECTRAL is None:
+        LAPLACE_SPECTRAL = False
 
     x, k, modk, modk2 = define_spaces(gridsize, N)
 
@@ -24,37 +25,22 @@ def gradient_descent(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamm
     if LAPLACE_SPECTRAL:
         energies = [energy_value(gamma, epsilon, N, u0, th, modk, modk2, c0)]
     else:
-        energies = [energy_value_fd_mix(u0, sigma_k, N, gamma, epsilon, c0)]
+        energies = [energy_value_fd(u0, sigma_k, N, gamma, epsilon, c0)]
 
     if LIVE_PLOT or DATA_LOG:
         fig1, ax1 = plt.subplots(figsize = (14,12))
         fig2, ax2 = plt.subplots(figsize = (10,10))
         plt.ion()
 
-    M_k = sigma_k + gamma * epsilon * modk2 * (2*torch.pi)**2
+    M_k = sigma_k + gamma * epsilon * modk2
+
+
+    # ToDo: Calculate Lipshitz constant
     Ls = float(M_k.max().cpu().item())
     
-    """
-    
-    for spectral: 
-        gamma = 0.08 for lower boundary
-        alpha = 2/Ls * 1e-3
-
-    for dx:
-        gamma = 
-        alpha = 2/Ls * 1e-3 * 0.5
-    """
-
-    gamma = 0.005
-    
-    #alpha = 2/Ls * 1e-3 # * 0.5
-    alpha = 2/Ls
+    alpha = 2/Ls * 1e-3
     print("Lipschitz constant",Ls)
     print("alpha: ", alpha)
-
-    energies_diff_sum_index = 10
-    energies_diff = []
-    ENERGY_DIFF_STOP_TOL = 1e-9
 
     for ii in tqdm(range(num_iters), desc="GD"):
         if LAPLACE_SPECTRAL:
@@ -68,7 +54,7 @@ def gradient_descent(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamm
             # total gradient
             grad_E = grad_lin + grad_double
         else:
-            grad_E = grad_fd_mix(u, sigma_k, N, gamma, epsilon, c0)
+            grad_E = grad_fd(u, sigma_k, N, gridsize, gamma, epsilon, c0)
 
         # GD update
         u -= alpha * grad_E
@@ -77,26 +63,17 @@ def gradient_descent(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamm
         if LAPLACE_SPECTRAL:
             curr_energy = energy_value(gamma, epsilon, N, u, th, modk, modk2, c0)
         else:
-            curr_energy = energy_value_fd_mix(u, sigma_k, N, gamma, epsilon, c0)
+            curr_energy = energy_value_fd(u, sigma_k, N, gamma, epsilon, c0)
 
         energy_diff = energies[-1] - curr_energy
-        print("dE", energy_diff)
         energies.append(curr_energy)
-        energies_diff.append(abs(energy_diff))
 
         if LIVE_PLOT and (ii % 5_000) == 0:
             plotting_schematic(FOLDER_PATH, ax1, fig1, ax2, fig2, u, energies, N, num_iters, gamma, epsilon, ii)
-            plt.pause(1)
-
-        #if STOP_BY_TOL and energy_diff < ENERGY_STOP_TOL:
-        #    break
-
-        if ii > energies_diff_sum_index:
-            energy_diff_sum = sum(energies_diff[ii-energies_diff_sum_index:-1]) 
-            #print("Sum of energy differences: ", energy_diff_sum)        
+            plt.pause(1)  
             
-        if STOP_BY_TOL and (ii > energies_diff_sum_index) and (energy_diff_sum < ENERGY_DIFF_STOP_TOL):
-            print(f"Energy convergence : sum(last {energies_diff_sum_index} dE_i) = {energy_diff_sum:.3f} < {ENERGY_DIFF_STOP_TOL}")
+        if STOP_BY_TOL and abs(energy_diff) < ENERGY_STOP_TOL:
+            print("dE[ii-1,ii]", abs(energy_diff) )
             break
 
     plt.ioff()
@@ -215,7 +192,7 @@ if __name__ == "__main__":
     labyrinth_data_params = replace(labyrinth_data_params, N = 40)
     gridsize, N, th, epsilon, gamma = get_DataParameters(labyrinth_data_params)
     
-    u = initialize_u0_random(N)
+    u = initialize_u0_random(N, REAL=True)
     #print(u)
     #print(u.shape)
     import time
@@ -225,7 +202,7 @@ if __name__ == "__main__":
     print(gd_sim_params)
     print_bars()
     #time.sleep(100)
-    gradient_descent_backtracking(u, LIVE_PLOT, DATA_LOG, FOLDER_PATH, **asdict(labyrinth_data_params), num_iters=500_000, c0 = 9/32)
-    #gradient_descent(u, LIVE_PLOT, DATA_LOG, FOLDER_PATH, **asdict(labyrinth_data_params), **asdict(gd_sim_params))
+    #gradient_descent_backtracking(u, LIVE_PLOT, DATA_LOG, FOLDER_PATH, **asdict(labyrinth_data_params), num_iters=500_000, c0 = 9/32)
+    gradient_descent(u, LIVE_PLOT, DATA_LOG, FOLDER_PATH, **asdict(labyrinth_data_params), **asdict(gd_sim_params))
 
     

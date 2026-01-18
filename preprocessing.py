@@ -345,6 +345,16 @@ def _average_filter(stack: torch.Tensor, kernel_size: int) -> torch.Tensor:
 def compute_mcd(rcp: torch.Tensor, lcp: torch.Tensor, mask_threshold: float = 250.0, kernel_size: int = 250) -> torch.Tensor:
     """
     Implemented as same function method as From Dr. Jauk
+    
+    
+    _average_filter(stack, kernel_size) pads each slice with a reflection border, then convolves with a kernel filled with ones normalized by its area. Effectively, it replaces every pixel with the local mean over a kernel_size × kernel_size neighbourhood, producing a smooth “flat-field” version of the stack.
+
+    builds a binary mask from the first RCP slice where intensities exceed mask_threshold
+    
+    _average_filter to estimate the local background for each, and divides by those backgrounds to flatten illumination.
+
+    magneto-optical contrast (R − L) / (R + L) slice by slice, yielding the magneto-circular dichroism tensor used later for plotting/export.
+    
     """
     
     if rcp.shape != lcp.shape:
