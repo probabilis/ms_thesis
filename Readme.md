@@ -75,19 +75,14 @@ Magnetic Image mapping:
 - Make power law estimator plot          -> X
 - Implement asymptotic evolution (Condette page 75) -> X
 - Check GD algorithm once for possible errors (such slow convergence) -> X
-
-
+- Check Lipshitz constant -> implement in GD for rerun + autograd check once again -> X
 
 
 ### Open:
 #### High Priority:
-
-- Check Lipshitz constant -> implement in GD for rerun + autograd check once again
 - Integrate data-savings for all algorithms 
 - simulation evolution / concurrent savings for let'say max_it/10 times
 - single domain evolution
-
-#### Low Priority:
 - Check runtimes by multiple runs to get an appropriate estimator -> runtime.py script
 - Standardize plotting schematic + LaTex Font integration (still open: axis + latex font)
 

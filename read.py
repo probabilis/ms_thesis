@@ -67,7 +67,6 @@ def clean_domains(y, min_obj=100, min_hole=100, se_radius=2):
     y_clean = np.where(bright, 1.0, -1.0).astype(np.float32)
     return y_clean
 
-
 def read_gmm(CLEAN_DOMAINS = False):
 
     # 4) fit 2-component GMM on intensities
@@ -154,7 +153,7 @@ def read_csv(_FILE_PATH, method : Literal["raw","standardize","shift", "clipped"
                 axs[ii, 1].set_xlim(-1.2, +1.2)
 
         fig.tight_layout()
-        fig.savefig(_FILE_PATH.with_suffix(".png"), dpi = 300)
+        #fig.savefig(_FILE_PATH.with_suffix(".png"), dpi = 300)
         plt.show()
 
     if method == "raw":

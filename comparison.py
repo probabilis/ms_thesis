@@ -13,11 +13,6 @@ from gd_proximal import gradient_descent_proximal
 from gd_nesterov import gradient_descent_nesterov
 
 
-def relative(x, REL = True):
-    if len(x) > 1 and REL:
-        return [abs(i-x[0]) for i in x]
-    else:
-        return x
 
 def convergence_comparison():
 
@@ -27,14 +22,14 @@ def convergence_comparison():
     energies_cn = []
     for max_it_fixpoint in max_it_fixpoint_ls:
         max_it = num_iters / max_it_fixpoint
-        energies = adapted_crank_nicolson(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, epsilon, gamma, dt, max_it_fixpoint, max_it, tol, stop_limit, c0, STOP_BY_TOL)
+        _, energies = adapted_crank_nicolson(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, epsilon, gamma, dt, max_it_fixpoint, max_it, tol, stop_limit, c0, STOP_BY_TOL)
         energies_cn.append(energies)
 
-    energies_gd = gradient_descent(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamma, epsilon, c0, alpha, num_iters, STOP_BY_TOL)
+    _, energies_gd = gradient_descent(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamma, epsilon, c0, alpha, num_iters, LAPLACE_SPECTRAL=True, STOP_BY_TOL = STOP_BY_TOL)
 
-    energies_prox = gradient_descent_proximal(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamma, epsilon, tau, c0, num_iters, prox_newton_iters, tol_newton, STOP_BY_TOL)
+    _, energies_prox = gradient_descent_proximal(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamma, epsilon, tau, c0, num_iters, prox_newton_iters, tol_newton, STOP_BY_TOL)
     
-    energies_nest = gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamma, epsilon, tau, c0, num_iters, prox_newton_iters, tol_newton, STOP_BY_TOL)
+    _, energies_nest = gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamma, epsilon, tau, c0, num_iters, prox_newton_iters, tol_newton, LAPLACE_SPECTRAL=True, STOP_BY_TOL = STOP_BY_TOL)
 
     # ---------------------------------------------------------------
 
@@ -58,33 +53,6 @@ def convergence_comparison():
 
     plt.savefig(FOLDER_PATH / f"energy_convergence_comparison_N={N}_nmax={num_iters}_gamma={gamma}_eps={epsilon}.png", dpi = 300)
     plt.show()
-
-    # ---------------------------------------------------------------
-    # relative (E_i - E_0) plot
-
-    fig, ax = plt.subplots(1,1, figsize = (12,10))
-
-    energies_gd = relative(energies_gd)
-    energies_prox = relative(energies_prox)
-    energies_nest = relative(energies_nest)
-
-    for ii, _cn in enumerate(energies_cn):
-        _diff = relative(_cn)
-        ax.plot(_diff, label= fr"Crank Nicolson $N_{{fixpoint}}$ = {max_it_fixpoint_ls[ii]}", linewidth = 2, color = colors_cn[ii])
-
-    ax.plot(energies_gd, label="Gradient Descent", linewidth = 3, color =  colors_gd[0])
-    ax.plot(energies_prox, label="Proximal Gradient Descent", linewidth = 3, color = colors_gd[1])
-    ax.plot(energies_nest, label="Nesterov Proximal GD", linewidth = 3, color = colors_gd[2])
-
-    ax.set_xlabel("Iteration $i$")
-    ax.set_ylabel("Energy difference $|E_i - E_0|$")
-    ax.set_title("Energy convergence comparison / $E_0$ is initial energy")
-    ax.legend(loc = "lower right")
-    ax.grid(True)
-    fig.tight_layout()
-    plt.savefig(FOLDER_PATH / f"energy_convergence_comparison_relative_N={N}_nmax={num_iters}_gamma={gamma}_eps={epsilon}.png", dpi = 300)
-    plt.show()
-
 
 def convegence_comparison_by_tol():
     
@@ -145,7 +113,7 @@ if __name__ == "__main__":
 
     gridsize = 1.0
     N = 256
-    epsilon = 1/20
+    epsilon = 1/50
     gamma = 1/200
     c0 = 9/32
     th = 1.0
@@ -157,7 +125,7 @@ if __name__ == "__main__":
     stop_limit = ENERGY_STOP_TOL
     tol = 1e-6
 
-    prox_newton_iters = 50
+    prox_newton_iters = 20
     tol_newton = 1e-6
 
     max_it_fixpoint_ls = [1, 2, 5]
@@ -181,4 +149,4 @@ if __name__ == "__main__":
 
 
     convergence_comparison()
-    convegence_comparison_by_tol()
+    #convegence_comparison_by_tol()

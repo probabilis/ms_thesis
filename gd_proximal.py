@@ -9,7 +9,7 @@ from params import labyrinth_data_params, pgd_sim_params, get_DataParameters
 from env_utils import PATHS, print_bars, get_args, plotting_style, plotting_schematic, log_data
 # ---------------------------------------------------------------
 
-def gradient_descent_proximal(u, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamma, epsilon, tau, c0, num_iters, prox_newton_iters, tol_newton, STOP_BY_TOL = True, ENERGY_STOP_TOL = 1e-6):
+def gradient_descent_proximal(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamma, epsilon, tau, c0, num_iters, prox_newton_iters, tol_newton, STOP_BY_TOL = True, ENERGY_STOP_TOL = 1e-6):
 
     x, k, modk, modk2 = define_spaces(gridsize, N)
 
@@ -17,12 +17,14 @@ def gradient_descent_proximal(u, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, 
     M_k = sigma_k + gamma * epsilon * modk2 # M_k multiplier for the quadratic term
 
     # --- main proximal-gradient loop ---
-    energies = [energy_value(gamma, epsilon, N, u, th, modk, modk2, c0)]
+    energies = [energy_value(gamma, epsilon, N, u0, th, modk, modk2, c0)]
     
     if LIVE_PLOT or DATA_LOG:
         fig1, ax1 = plt.subplots(figsize = (14,12))
         fig2, ax2 = plt.subplots(figsize = (10,10))
         plt.ion()
+
+    u = u0.clone()
 
     try:
         for n in tqdm(range(num_iters), desc= "GD Proximal"):
@@ -59,7 +61,7 @@ def gradient_descent_proximal(u, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, 
         log_data(FOLDER_PATH, u, energies, N, num_iters, gamma, epsilon)
         plotting_schematic(FOLDER_PATH, ax1, fig1, ax2, fig2, u, energies, N, num_iters, gamma, epsilon, n)
 
-    return energies
+    return u, energies
 
 # ---------------------------------------------------------------
 

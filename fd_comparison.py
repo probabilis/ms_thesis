@@ -18,16 +18,15 @@ from params import sim_config
 if __name__ == "__main__":
 
     plotting_style()
-    FOLDER_PATH = PATHS.PATH_NESTEROV
+    FOLDER_PATH = PATHS.PATH_COMPARISON
 
     LIVE_PLOT = False
     DATA_LOG = False
 
-    gamma_start_fd = 0.00008
-    gamma_start_spectral = 0.00014
+    #gamma_start_fd = 0.00008
+    #gamma_start_spectral = 0.00014
     
-    
-    labyrinth_data_params = replace(labyrinth_data_params, N = 64, gamma = 0.00001)
+    labyrinth_data_params = replace(labyrinth_data_params, N = 64, gamma = 0.0008)
 
 
     #gridsize, N, th, epsilon, gamma = get_DataParameters(labyrinth_data_params)
@@ -39,7 +38,7 @@ if __name__ == "__main__":
     print(ngd_sim_params)
     print_bars()
 
-    fig, axs = plt.subplots(2,1)
+    fig, axs = plt.subplots(2,2)
 
     _types = ["Finite Differences", "Spectral"]
 
@@ -49,8 +48,11 @@ if __name__ == "__main__":
         
         u, e = gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, **asdict(labyrinth_data_params),**asdict(ngd_sim_params), **asdict(sim_config))
         
-        axs[ii].imshow(u)
-        axs[ii].set_title(f"LaPlace: {_types[ii]}")
-        #axs[ii].set_title(f"{sim_config["LAPLACE_SPECTRAL"]}")
+        axs[ii, 0].imshow(u)
+        axs[ii, 0].set_title(f"LaPlace: {_types[ii]}")
 
+        axs[ii, 1].plot(e)
+        axs[ii, 1].set_title("Energy evolution")
+
+    plt.savefig(FOLDER_PATH / "laplace_evaluation_comparison.png", dpi = 300)
     plt.show()

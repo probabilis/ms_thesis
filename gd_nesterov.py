@@ -23,8 +23,9 @@ def gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N,
 
     # --- spaces ---
     if LAPLACE_SPECTRAL is None:
-        LAPLACE_SPECTRAL = False
+        LAPLACE_SPECTRAL = True
     
+    print("LAPALCE SPECTRAL", LAPLACE_SPECTRAL)
     
     if LAPLACE_SPECTRAL:
         energies = [energy_value(gamma, epsilon, N, u0, th, modk, modk2, c0)]

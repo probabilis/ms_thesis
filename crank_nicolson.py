@@ -84,7 +84,7 @@ def adapted_crank_nicolson(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th
         log_data(FOLDER_PATH, u_n, energies, N, max_it, gamma, epsilon)
         plotting_schematic(FOLDER_PATH, ax1, fig1, ax2, fig2, u_n, energies, N, max_it, gamma, epsilon, ii)
 
-    return energies
+    return u_n, energies
 
 # ---------------------------------------------------------------
 

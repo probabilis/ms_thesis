@@ -34,7 +34,7 @@ def energy_value_with_data(gamma, epsilon, N, u, th, modk, modk2, c0,
 
 def gradient_descent_nesterov_evaluation(
     u0, u_exp, _lambda, LIVE_PLOT, DATA_LOG, OUTPUT_PATH, gridsize, N, th, gamma, epsilon, tau, c0,
-    num_iters, prox_newton_iters, tol_newton, STOP_BY_TOL = False, ENERGY_DIFF_STOP_TOL = 1e-6):
+    num_iters, prox_newton_iters, tol_newton, STOP_BY_TOL = False, ENERGY_STOP_TOL = 1e-6):
     """
     Nesterov (FISTA-like) proximal gradient with adaptive restart,
     augmented by a quadratic data term (λ/2)||u - u_exp||^2.
@@ -42,7 +42,7 @@ def gradient_descent_nesterov_evaluation(
 
     # --- spaces ---
 
-    x, k, modk, modk2 = define_spaces(gridsize, N, LAPLACE_SPECTRAL=True)
+    x, k, modk, modk2 = define_spaces(gridsize, N)
     sigma_k = fourier_multiplier(th * modk).to(dtype_real).to(device)
     M_k = sigma_k + gamma * epsilon * modk2
 
@@ -56,15 +56,12 @@ def gradient_descent_nesterov_evaluation(
 
     # energy history starts at u0
     energies = [energy_value_with_data(gamma, epsilon, N, u0, th, modk, modk2,c0, _lambda, u_exp)]
-    energies_diff = []
-    energies_diff_sum_index = 10
 
     # plotting
     if LIVE_PLOT:
         plt.ion()
         fig1, ax1 = plt.subplots(1,1, figsize=(5,5))
         fig2, ax2 = plt.subplots(1,1, figsize=(5,5))
-        
 
     try:
         for n in tqdm(range(1, num_iters+1), desc="Nesterov GD for Data"):
@@ -90,19 +87,18 @@ def gradient_descent_nesterov_evaluation(
             E = energy_value_with_data(gamma, epsilon, N, u_curr,th, modk, modk2, c0, _lambda, u_exp)
             energy_diff = energies[-1] - E
             energies.append(E)
-            energies_diff.append(abs(energy_diff))
 
             if (n % 100) == 0 and LIVE_PLOT:
                 plotting_schematic_eval(OUTPUT_PATH, ax1, fig1, ax2, fig2, u_curr, energies, N, num_iters, gamma, epsilon, _lambda, n)
                 plt.pause(1)
-
-            if n > energies_diff_sum_index:
-                energy_diff_sum = sum(energies_diff[n-energies_diff_sum_index:-1]) 
-                #print("Sum of energy differnces: ", energy_diff_sum)        
                 
-            if STOP_BY_TOL and (n > energies_diff_sum_index) and (energy_diff_sum < ENERGY_DIFF_STOP_TOL):
-                print(f"Energy convergence : sum(last {energies_diff_sum_index} dE_i) = {energy_diff_sum:.3f} < {ENERGY_DIFF_STOP_TOL}")
+            #if STOP_BY_TOL and (n > energies_diff_sum_index) and (energy_diff_sum < ENERGY_DIFF_STOP_TOL):
+            #    print(f"Energy convergence : sum(last {energies_diff_sum_index} dE_i) = {energy_diff_sum:.3f} < {ENERGY_DIFF_STOP_TOL}")
+            #    break
+            if STOP_BY_TOL and energy_diff < ENERGY_STOP_TOL:
+                print("dE", energy_diff)
                 break
+
 
     except KeyboardInterrupt:
         print("Exit.")
@@ -131,11 +127,11 @@ if __name__ == "__main__":
     # ---------------------------------------------------------------
 
     dataset = "data_00"
-    recording = "003"
+    recording = "004"
 
     INPUT_FILE_PATH = PATHS.BASE_EXPDATA / f"{dataset}/csv/mcd_slice_{recording}.csv"
-
-    u_exp = read_csv(INPUT_FILE_PATH, "clipped", PLOT = True)
+    print(f"Reading {INPUT_FILE_PATH} as experimental image data.")
+    u_exp = read_csv(INPUT_FILE_PATH, "standardize", PLOT = False)
 
     if u_exp.shape[0] != u_exp.shape[1]:
         raise ValueError("Experimental data should be quadratic (NxN tensor).")
@@ -144,9 +140,10 @@ if __name__ == "__main__":
     # ---------------------------------------------------------------
 
     num_iters = 5000
+    ENERGY_STOP_TOL = 1e-10
 
     labyrinth_data_params = replace(labyrinth_data_params, N = N_exp)
-    labyrinth_data_params = replace(labyrinth_data_params, gamma = 0.02)
+    labyrinth_data_params = replace(labyrinth_data_params, gamma = 0.0008) 
     ngd_sim_params = replace(ngd_sim_params, num_iters = num_iters)
 
     gridsize, N, th, epsilon, gamma = get_DataParameters(labyrinth_data_params)
@@ -157,22 +154,22 @@ if __name__ == "__main__":
     print(ngd_sim_params)
     print_bars()
 
-    _lambda = torch.std(u0)
-    print(f"Learning Rate Lambda := std(u0) = {_lambda}")
+    _lambda = 0.01
+    print(f"Learning Rate Lambda: {_lambda}")
     print_bars()
 
     # ---------------------------------------------------------------
 
-    u, energies = gradient_descent_nesterov_evaluation(u0, u_exp, _lambda, LIVE_PLOT, DATA_LOG, OUTPUT_PATH,**asdict(labyrinth_data_params),**asdict(ngd_sim_params), STOP_BY_TOL=True)
+    u, energies = gradient_descent_nesterov_evaluation(u0, u_exp, _lambda, LIVE_PLOT, DATA_LOG, OUTPUT_PATH,**asdict(labyrinth_data_params),**asdict(ngd_sim_params), STOP_BY_TOL=True, ENERGY_STOP_TOL=ENERGY_STOP_TOL)
     
     fig, axs = plt.subplots(1,2) # , figsize = (8,8)
     axs[0].imshow(u.cpu().numpy(), cmap='gray',origin="lower", extent=(0,1,0,1))
     axs[0].set_box_aspect(1)
-    axs[0].set_title(f"$\\gamma = {gamma}, \\lambda := std(u_0) = {_lambda:.2f}$")
+    axs[0].set_title(f"$\\gamma = {gamma}, \\lambda = {_lambda}$")
 
     axs[1].plot(np.arange(0,len(energies), 1), energies)
     axs[1].set_box_aspect(1)
-    axs[1].set_title(f"$\\Sigma \\Delta E < 0.1$")
+    axs[1].set_title(f"$\\Delta E < {ENERGY_STOP_TOL}$")
     #axs[1].set_yscale('log')
     fig.tight_layout()
     #plt.savefig(OUTPUT_PATH / f"evaluation_gamma={gamma}_lambda={_lambda:.2f}_num-iters={num_iters}.png", dpi = 300)

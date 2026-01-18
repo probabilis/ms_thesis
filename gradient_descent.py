@@ -14,7 +14,7 @@ from params import labyrinth_data_params, gd_sim_params, get_DataParameters, get
 def gradient_descent(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamma, epsilon, c0, alpha, num_iters, LAPLACE_SPECTRAL = None, STOP_BY_TOL = True, ENERGY_STOP_TOL = 1e-12):
 
     if LAPLACE_SPECTRAL is None:
-        LAPLACE_SPECTRAL = False
+        LAPLACE_SPECTRAL = True
 
     x, k, modk, modk2 = define_spaces(gridsize, N)
 
@@ -36,10 +36,11 @@ def gradient_descent(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamm
 
 
     # ToDo: Calculate Lipshitz constant
-    Ls = float(M_k.max().cpu().item())
+    #Ls = float(M_k.max().cpu().item())
+    #alpha = 2/Ls * 1e-3
+    #print("Lipschitz constant",Ls)
     
-    alpha = 2/Ls * 1e-3
-    print("Lipschitz constant",Ls)
+    #alpha = 0.02
     print("alpha: ", alpha)
 
     for ii in tqdm(range(num_iters), desc="GD"):
@@ -82,7 +83,7 @@ def gradient_descent(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamm
         log_data(FOLDER_PATH, u, energies, N, num_iters, gamma, epsilon)
         plotting_schematic(FOLDER_PATH, ax1, fig1, ax2, fig2, u, energies, N, num_iters, gamma, epsilon, ii)
 
-    return energies
+    return u, energies
 
 # ---------------------------------------------------------------
 

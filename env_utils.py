@@ -24,6 +24,8 @@ class PATHS:
     PATH_EVALUATION = BASE_OUTPUT / 'evaluation'
     PATH_PARAMS_STUDY = BASE_OUTPUT / 'params_study'
 
+    PATH_EXAMPLES = _BASE / 'examples'
+
 
     
 
