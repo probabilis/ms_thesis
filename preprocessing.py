@@ -2,7 +2,7 @@
 """
 Read left/right circular polarization image stacks together with the
 associated spectroscopy metadata and reproduce the magneto-optical
-contrast plot from the MATLAB reference scripts.
+contrast plot from the MATLAB reference scripts by Dr. Thomas Jauk.
 """
 
 from __future__ import annotations
@@ -347,7 +347,8 @@ def compute_mcd(rcp: torch.Tensor, lcp: torch.Tensor, mask_threshold: float = 25
     Implemented as same function method as From Dr. Jauk
     
     
-    _average_filter(stack, kernel_size) pads each slice with a reflection border, then convolves with a kernel filled with ones normalized by its area. Effectively, it replaces every pixel with the local mean over a kernel_size × kernel_size neighbourhood, producing a smooth “flat-field” version of the stack.
+    _average_filter(stack, kernel_size) pads each slice with a reflection border, then convolves with a kernel filled with ones normalized by its area. 
+    Effectively, it replaces every pixel with the local mean over a kernel_size × kernel_size neighbourhood, producing a smooth “flat-field” version of the stack.
 
     builds a binary mask from the first RCP slice where intensities exceed mask_threshold
     
@@ -355,6 +356,7 @@ def compute_mcd(rcp: torch.Tensor, lcp: torch.Tensor, mask_threshold: float = 25
 
     magneto-optical contrast (R − L) / (R + L) slice by slice, yielding the magneto-circular dichroism tensor used later for plotting/export.
     
+    outptus MCD ... Magneto Circular dichroism tensor
     """
     
     if rcp.shape != lcp.shape:

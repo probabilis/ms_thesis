@@ -16,7 +16,7 @@ from pattern_formation import energy_value_fd, grad_fd
 # ---------------------------------------------------------------
 
 
-def gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamma, epsilon, tau, c0, num_iters, prox_newton_iters, tol_newton, LAPLACE_SPECTRAL = None, STOP_BY_TOL = True, ENERGY_STOP_TOL = 1e-10):
+def gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamma, epsilon, tau, c0, num_iters, prox_newton_iters, tol_newton, LAPLACE_SPECTRAL = None, STOP_BY_TOL = False, ENERGY_STOP_TOL = 1e-10):
     # Nesterov proximal gradient with adaptive restart
 
     x, k, modk, modk2 = define_spaces(gridsize, N)
@@ -43,11 +43,7 @@ def gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N,
     u_curr = u0.clone()
     t_prev = 1.0
 
-    # plotting setup
-    if LIVE_PLOT or DATA_LOG:
-        fig1, ax1 = plt.subplots(figsize = (14,12))
-        fig2, ax2 = plt.subplots(figsize = (10,10))
-        plt.ion()
+    u_ls = []
 
     # --- main loop ---
     try:
@@ -82,9 +78,10 @@ def gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N,
             energy_diff = energies[-1] - E
             energies.append(E)
 
-            if (n % 1000) == 0 and LIVE_PLOT:
-                plotting_schematic(FOLDER_PATH, ax1, fig1, ax2, fig2, u_curr, energies, N, num_iters, gamma, epsilon, n)
-                plt.pause(1)
+            if (n % 100) == 0 and LIVE_PLOT:
+                #plotting_schematic(FOLDER_PATH, ax1, fig1, ax2, fig2, u_curr, energies, N, num_iters, gamma, epsilon, n)
+                u_ls.append(u_curr)
+
 
             if STOP_BY_TOL and abs(energy_diff) < ENERGY_STOP_TOL:
                 print("dE[ii-1,ii]", energy_diff)
@@ -92,27 +89,22 @@ def gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N,
 
     except KeyboardInterrupt:
         print("Exit.")
-    
-    plt.ioff()
-    
-    if DATA_LOG:
-        log_data(FOLDER_PATH, u_curr, energies, N, num_iters, gamma, epsilon)
-        plotting_schematic(FOLDER_PATH, ax1, fig1, ax2, fig2, u_curr, energies, N, num_iters, gamma, epsilon, n)
 
-    return u_curr, energies
+    return u_ls
 
 # ---------------------------------------------------------------
 
 if __name__ == "__main__":
 
     plotting_style()
-    FOLDER_PATH = PATHS.PATH_NESTEROV
+    FOLDER_PATH = PATHS.PATH_EXAMPLES
 
     args = get_args()
-    LIVE_PLOT = args.live_plot
+    LIVE_PLOT = True
     DATA_LOG = args.data_log
 
-    labyrinth_data_params = replace(labyrinth_data_params, N = 64)
+    labyrinth_data_params = replace(labyrinth_data_params, N = 64, gamma = 0.0002)
+    ngd_sim_params = replace(ngd_sim_params, num_iters = 2000)
 
     gridsize, N, th, epsilon, gamma = get_DataParameters(labyrinth_data_params)
     N = 64
@@ -123,4 +115,20 @@ if __name__ == "__main__":
     print(ngd_sim_params)
     print_bars()
 
-    gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, **asdict(labyrinth_data_params),**asdict(ngd_sim_params) )
+    u_ls = gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, **asdict(labyrinth_data_params),**asdict(ngd_sim_params) )
+    print(u_ls)
+    fig, axs = plt.subplots( 4, 5, figsize = (14,14) )
+
+    axs = axs.ravel()
+
+    print(len(u_ls))
+    for ii, u in enumerate(u_ls):
+        axs[ii].imshow(u.cpu().numpy(), cmap='gray', extent=(0,1,0,1))
+        axs[ii].set_box_aspect(1)
+        axs[ii].axes.get_xaxis().set_ticks([])
+        axs[ii].axes.get_yaxis().set_ticks([])
+        axs[ii].set_title(f"$ii = {ii+1}$")
+
+    fig.tight_layout()
+    plt.savefig(FOLDER_PATH / f"domain_evolution.png", dpi = 300)
+    plt.show()

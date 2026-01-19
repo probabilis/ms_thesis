@@ -8,29 +8,34 @@ from pattern_formation import initialize_u0_random
 
 
 if __name__ == "__main__":
+
     gridsize, N, th, epsilon, gamma = get_DataParameters(labyrinth_data_params)
     u0 = initialize_u0_random(N, REAL = True)
 
-    pgd_sim_params = replace(pgd_sim_params, num_iters = 1000   )
-
-    epsilon_ls = [1/2, 1/20, 1/200, 1/2000]
-    gamma_ls = [1/20, 1/200, 1/2000]
+    pgd_sim_params = replace(pgd_sim_params, num_iters = 5000)
+    gamma_ls = [1/500, 1/800, 1/1000, 1/1500, 1/2000, 1/3000, 1/4000, 1/5000, 1/8000, 1/12000]
 
     LIVE_PLOT = False
     DATA_LOG = False
     FOLDER_PATH = PATHS.PATH_PARAMS_STUDY
 
-    fig, axs = plt.subplots( len(epsilon_ls), len(gamma_ls), figsize = (20,20) )
+    fig, axs = plt.subplots( 2, 5, figsize = (14,14) )
 
-    for ii, _epsilon in enumerate(epsilon_ls):
-        for jj, _gamma in enumerate(gamma_ls):
+    axs = axs.ravel()
 
-            labyrinth_data_params = replace(labyrinth_data_params, gamma = _gamma, epsilon = _epsilon)
+    for ii, _gamma in enumerate(gamma_ls):
 
-            u, e = gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, **asdict(labyrinth_data_params),**asdict(pgd_sim_params), STOP_BY_TOL=False)
-            
-            axs[ii, jj].imshow(u.cpu().numpy(), cmap='gray', extent=(0,1,0,1))
-            axs[ii, jj].set_title(f"$\\gamma = {_gamma}, \\epsilon = {_epsilon}$")
+        labyrinth_data_params = replace(labyrinth_data_params, gamma = _gamma)
+        u, e = gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, **asdict(labyrinth_data_params),**asdict(pgd_sim_params), STOP_BY_TOL=True)
 
-    plt.savefig(FOLDER_PATH / "params_study.png", dpi = 300)
+        axs[ii].imshow(u.cpu().numpy(), cmap='gray', extent=(0,1,0,1))
+        
+        axs[ii].set_box_aspect(1)
+        axs[ii].axes.get_xaxis().set_ticks([])
+        axs[ii].axes.get_yaxis().set_ticks([])
+
+        axs[ii].set_title(f"$\\gamma = {_gamma:.5f}$")
+
+    fig.tight_layout()
+    plt.savefig(FOLDER_PATH / f"params_study_eps={epsilon}.png", dpi = 300)
     plt.show()

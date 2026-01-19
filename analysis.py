@@ -62,5 +62,5 @@ def gradient():
 
 if __name__ == "__main__":
 
-    #plot_fourier_multiplier()  
-    gradient()
+    plot_fourier_multiplier()  
+    #gradient()

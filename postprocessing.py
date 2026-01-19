@@ -50,7 +50,7 @@ if __name__ == "__main__":
     PLOT_ENERGY_CONVERGENCE_COMPARISON = True
 
     dataset = "data_00"
-    recording = "004"
+    recording = "003"
 
     INPUT_PATH = PATHS.BASE_EXPDATA
 
@@ -64,7 +64,7 @@ if __name__ == "__main__":
         params_file = json.load(_file)
 
     gamma_ls = params_file[recording]
-    _lambda_ls = [0.0001, 0.001, 0.01]
+    _lambda_ls = [0.001, 0.01]
     print("Gamma's: ", gamma_ls)
     print("Lambda's: ", _lambda_ls)
     num_iters = 5000
@@ -111,7 +111,7 @@ if __name__ == "__main__":
                 #plt.show()
 
     if PLOT_DIFF_COMPARISON:
-        fig, axs = plt.subplots( len(gamma_ls), len(_lambda_ls), figsize = (14,14))
+        fig, axs = plt.subplots( len(gamma_ls), len(_lambda_ls), figsize = (3 * len(_lambda_ls), 3 * len(gamma_ls)) )
 
         for ii, gamma in enumerate(gamma_ls):
             for jj, _lambda in enumerate(_lambda_ls):
@@ -126,7 +126,7 @@ if __name__ == "__main__":
                 axs[ii, jj].axes.get_yaxis().set_ticks([])
                 #axs[ii, jj].set_title(f"$\\gamma = {gamma:.3f}$")
 
-        fig.tight_layout()
+        #fig.tight_layout()
         fig.canvas.draw()  # ensures positions are compute
 
         for kk, _lambda in enumerate(_lambda_ls):

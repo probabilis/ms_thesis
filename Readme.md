@@ -76,16 +76,14 @@ Magnetic Image mapping:
 - Implement asymptotic evolution (Condette page 75) -> X
 - Check GD algorithm once for possible errors (such slow convergence) -> X
 - Check Lipshitz constant -> implement in GD for rerun + autograd check once again -> X
-
+- Integrate data-savings for all algorithms -> X
+- single domain evolution -> X
 
 ### Open:
 #### High Priority:
-- Integrate data-savings for all algorithms 
-- simulation evolution / concurrent savings for let'say max_it/10 times
-- single domain evolution
+
 - Check runtimes by multiple runs to get an appropriate estimator -> runtime.py script
 - Standardize plotting schematic + LaTex Font integration (still open: axis + latex font)
-
 
 
 

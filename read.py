@@ -118,8 +118,9 @@ def read_csv(_FILE_PATH, method : Literal["raw","standardize","shift", "clipped"
     # 2) crop ROI (your deltaN)
     deltaN = 180
     N = img.shape[0]
+    print("Initial image size:", N)
     roi = img[deltaN:N-deltaN, deltaN:N-deltaN]
-
+    print("Reduce image size:", roi.shape[0])
     roi -= ndi.gaussian_filter(roi, sigma=200)
 
     # 3) standardization 

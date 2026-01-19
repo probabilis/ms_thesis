@@ -87,7 +87,7 @@ labyrinth_data_params = DataParameters(
 gridsize = 1,
 N = 128,
 th = 1.0,
-epsilon = 1/50,
+epsilon = 1/100,
 gamma = 1/200
 )
 

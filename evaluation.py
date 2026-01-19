@@ -6,7 +6,7 @@ from dataclasses import asdict, replace
 
 from pattern_formation import fourier_multiplier,energy_value, dtype_real, device, initialize_u0_random, define_spaces, grad_g
 from gd_proximal import prox_h
-from params import labyrinth_data_params, get_DataParameters, get_SimulationParamters
+from params import exp_data_params, get_DataParameters, get_SimulationParamters
 from params import pgd_sim_params as ngd_sim_params
 
 from env_utils import PATHS, print_bars, get_args, plotting_style, plotting_schematic_eval, log_data
@@ -28,9 +28,7 @@ def energy_value_with_data(gamma, epsilon, N, u, th, modk, modk2, c0,
     E_data = 0.5 * _lambda * torch.sum((u - u_exp)**2) / N**2
     return (E_base + E_data).item()
 
-# -----------------------------
-# Nesterov PGD with data fidelity
-# -----------------------------
+# Nesterov PGD with experimental image data
 
 def gradient_descent_nesterov_evaluation(
     u0, u_exp, _lambda, LIVE_PLOT, DATA_LOG, OUTPUT_PATH, gridsize, N, th, gamma, epsilon, tau, c0,
@@ -92,9 +90,6 @@ def gradient_descent_nesterov_evaluation(
                 plotting_schematic_eval(OUTPUT_PATH, ax1, fig1, ax2, fig2, u_curr, energies, N, num_iters, gamma, epsilon, _lambda, n)
                 plt.pause(1)
                 
-            #if STOP_BY_TOL and (n > energies_diff_sum_index) and (energy_diff_sum < ENERGY_DIFF_STOP_TOL):
-            #    print(f"Energy convergence : sum(last {energies_diff_sum_index} dE_i) = {energy_diff_sum:.3f} < {ENERGY_DIFF_STOP_TOL}")
-            #    break
             if STOP_BY_TOL and energy_diff < ENERGY_STOP_TOL:
                 print("dE", energy_diff)
                 break
@@ -131,7 +126,7 @@ if __name__ == "__main__":
 
     INPUT_FILE_PATH = PATHS.BASE_EXPDATA / f"{dataset}/csv/mcd_slice_{recording}.csv"
     print(f"Reading {INPUT_FILE_PATH} as experimental image data.")
-    u_exp = read_csv(INPUT_FILE_PATH, "standardize", PLOT = False)
+    u_exp = read_csv(INPUT_FILE_PATH, "standardize", PLOT = True)
 
     if u_exp.shape[0] != u_exp.shape[1]:
         raise ValueError("Experimental data should be quadratic (NxN tensor).")
@@ -142,15 +137,14 @@ if __name__ == "__main__":
     num_iters = 5000
     ENERGY_STOP_TOL = 1e-10
 
-    labyrinth_data_params = replace(labyrinth_data_params, N = N_exp)
-    labyrinth_data_params = replace(labyrinth_data_params, gamma = 0.0008) 
+    exp_data_params = replace(exp_data_params, gamma = 0.0012) 
     ngd_sim_params = replace(ngd_sim_params, num_iters = num_iters)
 
-    gridsize, N, th, epsilon, gamma = get_DataParameters(labyrinth_data_params)
+    gridsize, N, th, epsilon, gamma = get_DataParameters(exp_data_params)
     u0 = initialize_u0_random(N, REAL=True)
 
     print_bars()
-    print(labyrinth_data_params)
+    print(exp_data_params)
     print(ngd_sim_params)
     print_bars()
 
@@ -160,7 +154,7 @@ if __name__ == "__main__":
 
     # ---------------------------------------------------------------
 
-    u, energies = gradient_descent_nesterov_evaluation(u0, u_exp, _lambda, LIVE_PLOT, DATA_LOG, OUTPUT_PATH,**asdict(labyrinth_data_params),**asdict(ngd_sim_params), STOP_BY_TOL=True, ENERGY_STOP_TOL=ENERGY_STOP_TOL)
+    u, energies = gradient_descent_nesterov_evaluation(u0, u_exp, _lambda, LIVE_PLOT, DATA_LOG, OUTPUT_PATH,**asdict(exp_data_params),**asdict(ngd_sim_params), STOP_BY_TOL=True, ENERGY_STOP_TOL=ENERGY_STOP_TOL)
     
     fig, axs = plt.subplots(1,2) # , figsize = (8,8)
     axs[0].imshow(u.cpu().numpy(), cmap='gray',origin="lower", extent=(0,1,0,1))

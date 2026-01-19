@@ -62,7 +62,7 @@ class bcolors:
 
 def get_filename(N, num_iters, gamma, epsilon, _lambda = None):
     if _lambda is not None:
-        return f"N={N}_nmax={num_iters}_gamma={gamma}_eps={epsilon}_lambda={_lambda:.2f}"
+        return f"N={N}_nmax={num_iters}_gamma={gamma}_eps={epsilon}_lambda={_lambda}"
     else:
         return f"N={N}_nmax={num_iters}_gamma={gamma}_eps={epsilon}"
 

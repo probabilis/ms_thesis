@@ -36,8 +36,8 @@ if __name__ == "__main__":
     print_bars()
 
     PLOT = False
-    gamma_ls = np.linspace(0.001, 0.00002, 20)
-    N_est = 20
+    gamma_ls = np.linspace(0.001, 0.00008, 20)
+    N_est = 5
     frequencies = torch.zeros(N_est, len(gamma_ls))
 
     if PLOT:
@@ -49,7 +49,7 @@ if __name__ == "__main__":
 
             u0 = initialize_u0_random(N, REAL = True)
 
-            labyrinth_data_params = replace(labyrinth_data_params, N = 64, gamma = gamma)
+            labyrinth_data_params = replace(labyrinth_data_params, N = N, gamma = gamma)
             
             u, energies = gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, **asdict(labyrinth_data_params),**asdict(ngd_sim_params), **asdict(sim_config))
             
@@ -91,7 +91,7 @@ if __name__ == "__main__":
     print(mean_frequencies)
     SPECTRUM = True
     if SPECTRUM:
-        plt.figure()
+        plt.figure() 
         plt.title("Characteristic Fourier Frequency of spectrum")
         plt.xlabel("Gamma $\\gamma$")
         plt.ylabel("Fourier frequency $\\omega$ / 1")

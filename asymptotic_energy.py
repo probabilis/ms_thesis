@@ -38,12 +38,13 @@ if __name__ == "__main__":
 
     N_est = 1
 
-    gamma_ls = np.linspace(1, 0, 100)
+    gamma_ls = np.linspace(1, 0, 50)
+    #gamma_ls = np.array([1/500, 1/800, 1/1000, 1/1500, 1/2000, 1/3000, 1/4000, 1/5000, 1/8000, 1/12000])
     energies_ls = []
 
     for ii in range(N_est):
         for gamma in gamma_ls:
-
+            print(gamma)
             u0 = initialize_u0_random(N, REAL = True)
 
             labyrinth_data_params = replace(labyrinth_data_params, N = 64, gamma = gamma)
@@ -60,6 +61,6 @@ if __name__ == "__main__":
     plt.loglog(gamma_ls, algebraic_scaling(gamma_ls), linestyle = "--", label = "theor.")
 
     plt.grid(color = "gray")
-    plt.legend()
+    plt.legend(loc = "lower right")
     plt.savefig(FOLDER_PATH / "asymptotic_energy.png", dpi = 300)
     plt.show()

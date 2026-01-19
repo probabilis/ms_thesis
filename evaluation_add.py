@@ -7,7 +7,7 @@ from dataclasses import asdict, replace
 from pathlib import Path
 
 from pattern_formation import initialize_u0_random
-from params import labyrinth_data_params, get_DataParameters, get_SimulationParamters
+from params import exp_data_params, get_DataParameters, get_SimulationParamters
 from params import pgd_sim_params as ngd_sim_params
 from env_utils import PATHS, print_bars, plotting_style, read_sim_dat_from_csv
 
@@ -25,7 +25,7 @@ def parse_args() -> argparse.Namespace:
 
 # ---------------------------------------------------------------
 
-def different_image_preprocessings(labyrinth_data_params, ngd_sim_params, SIMULATE_OR_READ):
+def different_image_preprocessings(exp_data_params, ngd_sim_params, SIMULATE_OR_READ):
 
     LIVE_PLOT = False
     DATA_LOG = True
@@ -68,14 +68,13 @@ def different_image_preprocessings(labyrinth_data_params, ngd_sim_params, SIMULA
 
         # ---------------------------------------------------------------
 
-        labyrinth_data_params = replace(labyrinth_data_params, N = N_exp)
         ngd_sim_params = replace(ngd_sim_params, num_iters = num_iters)
 
-        gridsize, N, th, epsilon, gamma = get_DataParameters(labyrinth_data_params)
+        gridsize, N, th, epsilon, gamma = get_DataParameters(exp_data_params)
         u0 = initialize_u0_random(N, REAL=True)
 
         print_bars()
-        print(labyrinth_data_params)
+        print(exp_data_params)
         print(ngd_sim_params)
         print_bars()
 
@@ -94,11 +93,11 @@ def different_image_preprocessings(labyrinth_data_params, ngd_sim_params, SIMULA
 
             for ii, _gamma in enumerate(gamma_ls): 
                 print("Gamma: ", _gamma)
-                labyrinth_data_params = replace(labyrinth_data_params, gamma = _gamma)
+                exp_data_params = replace(exp_data_params, gamma = _gamma)
                 
                 if SIMULATE_OR_READ == "simulate":
                     print("Simulating")
-                    u, energies = gradient_descent_nesterov_evaluation(u0, u_exp, _lambda, LIVE_PLOT, DATA_LOG, OUTPUT_PATH, **asdict(labyrinth_data_params),**asdict(ngd_sim_params), STOP_BY_TOL=True, ENERGY_STOP_TOL = ENERGY_STOP_TOL)
+                    u, energies = gradient_descent_nesterov_evaluation(u0, u_exp, _lambda, LIVE_PLOT, DATA_LOG, OUTPUT_PATH, **asdict(exp_data_params),**asdict(ngd_sim_params), STOP_BY_TOL=True, ENERGY_STOP_TOL = ENERGY_STOP_TOL)
                 elif SIMULATE_OR_READ == "read":
                     print("Reading")
                     df_energies, u_sim = read_sim_dat_from_csv(OUTPUT_PATH, N, num_iters, _gamma, epsilon, _lambda)
@@ -148,15 +147,15 @@ def different_image_preprocessings(labyrinth_data_params, ngd_sim_params, SIMULA
         plt.savefig(OUTPUT_PATH / f"recording={recording}_num-iters={num_iters}_{_type}.png", dpi = 300)
 
 
-def different_image_lambdas_and_gammas(labyrinth_data_params, ngd_sim_params, SIMULATE_OR_READ):
+def different_image_lambdas_and_gammas(exp_data_params, ngd_sim_params, SIMULATE_OR_READ):
 
     LIVE_PLOT = False
     DATA_LOG = True
     args = parse_args()
 
-    ENERGY_STOP_TOL = 1e-10
+    ENERGY_STOP_TOL = 1e-8
 
-    num_iters = 5000
+    num_iters = 5_000
 
     # ---------------------------------------------------------------
 
@@ -182,22 +181,20 @@ def different_image_lambdas_and_gammas(labyrinth_data_params, ngd_sim_params, SI
 
     if u_exp.shape[0] != u_exp.shape[1]:
         raise ValueError("Experimental data should be quadratic (NxN tensor).")
-    N_exp = u_exp.shape[0]
 
     # ---------------------------------------------------------------
 
-    labyrinth_data_params = replace(labyrinth_data_params, N = N_exp)
     ngd_sim_params = replace(ngd_sim_params, num_iters = num_iters)
 
-    gridsize, N, th, epsilon, gamma = get_DataParameters(labyrinth_data_params)
+    gridsize, N, th, epsilon, gamma = get_DataParameters(exp_data_params)
     u0 = initialize_u0_random(N, REAL=True)
 
     print_bars()
-    print(labyrinth_data_params)
+    print(exp_data_params)
     print(ngd_sim_params)
     print_bars()
 
-    _lambda_ls = [0.0001, 0.001, 0.01]
+    _lambda_ls = [0.001, 0.01]
 
     print(f"Learning Rate Lambda := {_lambda_ls}")
     print_bars()
@@ -212,11 +209,11 @@ def different_image_lambdas_and_gammas(labyrinth_data_params, ngd_sim_params, SI
 
         for ii, _gamma in enumerate(gamma_ls): 
             print("Gamma: ", _gamma)
-            labyrinth_data_params = replace(labyrinth_data_params, gamma = _gamma)
+            exp_data_params = replace(exp_data_params, gamma = _gamma)
             
             if SIMULATE_OR_READ == "simulate":
                 print("Simulating")
-                u, energies = gradient_descent_nesterov_evaluation(u0, u_exp, _lambda, LIVE_PLOT, DATA_LOG, OUTPUT_PATH, **asdict(labyrinth_data_params),**asdict(ngd_sim_params), STOP_BY_TOL=True, ENERGY_STOP_TOL = ENERGY_STOP_TOL)
+                u, energies = gradient_descent_nesterov_evaluation(u0, u_exp, _lambda, LIVE_PLOT, DATA_LOG, OUTPUT_PATH, **asdict(exp_data_params),**asdict(ngd_sim_params), STOP_BY_TOL=True, ENERGY_STOP_TOL = ENERGY_STOP_TOL)
             elif SIMULATE_OR_READ == "read":
                 print("Reading")
                 df_energies, u_sim = read_sim_dat_from_csv(OUTPUT_PATH, N, num_iters, _gamma, epsilon, _lambda)
@@ -227,7 +224,7 @@ def different_image_lambdas_and_gammas(labyrinth_data_params, ngd_sim_params, SI
             axs[ii, 2*kk].imshow(u.cpu().numpy(), cmap='gray',origin="lower", extent=(0,1,0,1))
             axs[ii, 2*kk].set_box_aspect(1)
             
-            axs[ii, 2*kk].set_title(f"$\\gamma = {_gamma:.4f}$")
+            axs[ii, 2*kk].set_title(f"$\\gamma = {_gamma:.5f}$")
 
             axs[ii, 2*kk].axes.get_xaxis().set_ticks([])
             axs[ii, 2*kk].axes.get_yaxis().set_ticks([])
@@ -247,7 +244,7 @@ def different_image_lambdas_and_gammas(labyrinth_data_params, ngd_sim_params, SI
             print_bars()
         
 
-    fig.tight_layout()
+    #fig.tight_layout()
     fig.canvas.draw()  # ensures positions are compute
     for kk, _lambda in enumerate(_lambda_ls):
         # Get positions of the two columns
@@ -260,7 +257,7 @@ def different_image_lambdas_and_gammas(labyrinth_data_params, ngd_sim_params, SI
         x_center = 0.5 * (bbox_l.x0 + bbox_r.x1)
         y_top = bbox_l.y1 + 0.02  # small offset above top row
 
-        title = f"$\\lambda = {_lambda:.2f}$"
+        title = f"$\\lambda = {_lambda}$"
 
         fig.text(x_center, y_top, title, ha="center", va="bottom", fontsize=14)
         
@@ -269,5 +266,5 @@ def different_image_lambdas_and_gammas(labyrinth_data_params, ngd_sim_params, SI
 
 
 if __name__ == "__main__":
-    #different_image_preprocessings(labyrinth_data_params, ngd_sim_params, "simulate")
-    different_image_lambdas_and_gammas(labyrinth_data_params, ngd_sim_params, "simulate")
+    #different_image_preprocessings(exp_data_params, ngd_sim_params, "simulate")
+    different_image_lambdas_and_gammas(exp_data_params, ngd_sim_params, "simulate")
