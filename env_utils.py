@@ -128,7 +128,7 @@ def plotting_schematic_eval(folder_path, ax1, fig1, ax2, fig2, u, energies, N, n
     file_name = get_filename(N, num_iters, gamma, epsilon)
     file_name = file_name + f"_lambda={_lambda}"
 
-    ax1.imshow(u.cpu().numpy(), cmap='gray', extent=(0,1,0,1))
+    ax1.imshow(u.cpu().numpy(), cmap='gray', origin="lower", extent=(0,1,0,1))
     ax1.set_title(f"$\\gamma$ = {gamma}, $\\epsilon$ = {epsilon}, $\\lambda$ = {_lambda:.3f} ($ii$ = {ii})")
     fig1.savefig(folder_path / f"{file_name}_pattern.png")
     ax2.plot(torch.arange(0,len(energies)), energies)

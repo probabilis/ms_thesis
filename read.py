@@ -171,5 +171,5 @@ def read_csv(_FILE_PATH, method : Literal["raw","standardize","shift", "clipped"
 
 
 if __name__ == "__main__":
-    read_csv(Path("data/expdata/data_00/csv/mcd_slice_001.csv"), "standardize", PLOT = True)
+    read_csv(Path("data/expdata/data_00/csv/mcd_slice_004.csv"), "standardize", PLOT = True)
 

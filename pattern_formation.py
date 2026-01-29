@@ -82,10 +82,58 @@ def double_well_prime(u, c0):
 # ------------------------------------------------------------------
 
 def laplacian(u, dx):
-    # with periodic BC
+    """
+    with periodic BC because of the torch.roll() implementation (last element will be rolled over to first element)
+    see.: https://docs.pytorch.org/docs/stable/generated/torch.roll.html
+    """
     lap_u = (torch.roll(u, 1, dims=0) + torch.roll(u, -1, dims=0) +
              torch.roll(u, 1, dims=1) + torch.roll(u, -1, dims=1) - 4 * u) / dx**2
     return lap_u
+
+
+def laplacian_neumann(u: torch.Tensor, dx: float) -> torch.Tensor:
+    """
+    2D 5-point Laplacian with homogeneous Neumann BC (zero normal derivative).
+    Implemented by mirroring the boundary-adjacent values (reflect/replicate),
+    i.e., ghost cells satisfy u[-1]=u[1], u[N]=u[N-2], etc.
+
+    u: shape (H, W) (or any tensor where the last two dims are y,x if you adapt dims)
+    dx: grid spacing (assumed same in both directions)
+    """
+
+    lap = torch.zeros_like(u)
+
+    # interior
+    lap[1:-1, 1:-1] = (
+        u[2:, 1:-1] + u[:-2, 1:-1] + u[1:-1, 2:] + u[1:-1, :-2] - 4.0 * u[1:-1, 1:-1]
+    )
+
+    # edges (Neumann: mirror across boundary)
+    # top row (i=0): u[-1] -> u[1]
+    lap[0, 1:-1] = (
+        u[1, 1:-1] + u[1, 1:-1] + u[0, 2:] + u[0, :-2] - 4.0 * u[0, 1:-1]
+    )
+    # bottom row (i=H-1): u[H] -> u[H-2]
+    lap[-1, 1:-1] = (
+        u[-2, 1:-1] + u[-2, 1:-1] + u[-1, 2:] + u[-1, :-2] - 4.0 * u[-1, 1:-1]
+    )
+    # left col (j=0): u[:, -1] -> u[:, 1]
+    lap[1:-1, 0] = (
+        u[2:, 0] + u[:-2, 0] + u[1:-1, 1] + u[1:-1, 1] - 4.0 * u[1:-1, 0]
+    )
+    # right col (j=W-1): u[:, W] -> u[:, W-2]
+    lap[1:-1, -1] = (
+        u[2:, -1] + u[:-2, -1] + u[1:-1, -2] + u[1:-1, -2] - 4.0 * u[1:-1, -1]
+    )
+
+    # corners (mirror in both directions)
+    lap[0, 0] = (u[1, 0] + u[1, 0] + u[0, 1] + u[0, 1] - 4.0 * u[0, 0])
+    lap[0, -1] = (u[1, -1] + u[1, -1] + u[0, -2] + u[0, -2] - 4.0 * u[0, -1])
+    lap[-1, 0] = (u[-2, 0] + u[-2, 0] + u[-1, 1] + u[-1, 1] - 4.0 * u[-1, 0])
+    lap[-1, -1] = (u[-2, -1] + u[-2, -1] + u[-1, -2] + u[-1, -2] - 4.0 * u[-1, -1])
+
+    return lap / (dx ** 2)
+
 
 # ------------------------------------------------------------------
 
@@ -187,7 +235,7 @@ def grad_fd(u, sigma_k, N, gridsize, gamma, epsilon, c0):
     """
 
     # Local FD gradient (–γ ε Δu)
-    lap = laplacian(u, gridsize/N)
+    lap = laplacian_neumann(u, gridsize/N)
     grad_loc = -(gamma * epsilon) * lap #* 0.1
 
     # Nonlocal gradient (σ_k * Fu)
@@ -201,6 +249,23 @@ def grad_fd(u, sigma_k, N, gridsize, gamma, epsilon, c0):
 
 # ------------------------------------------------------------------
 
+def grad_neumann_centered(u: torch.Tensor, dx: float):
+    uy = torch.zeros_like(u)
+    ux = torch.zeros_like(u)
+
+    # centered interior (more stable than )
+    uy[1:-1, :] = (u[2:, :] - u[:-2, :]) / (2*dx)
+    ux[:, 1:-1] = (u[:, 2:] - u[:, :-2]) / (2*dx)
+
+    # one-sided near boundary (then enforce Neumann normal=0)
+    uy[0, :]  = 0.0
+    uy[-1, :] = 0.0
+    ux[:, 0]  = 0.0
+    ux[:, -1] = 0.0
+
+    return uy, ux
+
+
 def energy_value_fd(u, sigma_k, N, gamma, epsilon, c0):
     """
     Energy functional with finite difference
@@ -208,6 +273,9 @@ def energy_value_fd(u, sigma_k, N, gamma, epsilon, c0):
 
     ux = u - torch.roll(u, 1, 0)
     uy = u - torch.roll(u, 1, 1)
+    
+    #dx = 1/N
+    #uy, ux = grad_neumann_centered(u, 1/N)
 
     # local gradient energy
     E_loc = 0.5 * (gamma * epsilon) * torch.sum(ux*ux + uy*uy) / (N**2)
@@ -228,23 +296,13 @@ def energy_value(gamma, epsilon, N, u, th, modk, modk2, c0):
     """
     E = DW + LaPlace + FM
     """
-    DEBUG = False
 
     W = double_well_potential(u, c0)
     ftu = torch.fft.fft2(u) / N**2
-    #S = fourier_multiplier(th * modk)
     S = fourier_multiplier(th * modk).to(dtype_real).to(device)
 
     energy = (gamma / epsilon) * torch.sum(W) / N**2
     energy += 0.5 * torch.sum( (S + gamma * epsilon * modk2) * torch.abs(ftu)**2 )
-
-    if DEBUG:
-        print('max modk:', torch.max(modk).item())
-        print('min modk:', torch.min(modk).item())
-        print('mean modk:', torch.mean(modk).item())
-        print('max sigma:', torch.max(S).item())
-        print('min sigma:', torch.min(S).item())
-        print('mean sigma:', torch.mean(S).item())
 
     return energy.item()
 

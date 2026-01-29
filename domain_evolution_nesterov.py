@@ -103,7 +103,7 @@ if __name__ == "__main__":
     LIVE_PLOT = True
     DATA_LOG = args.data_log
 
-    labyrinth_data_params = replace(labyrinth_data_params, N = 64, gamma = 0.0002)
+    labyrinth_data_params = replace(labyrinth_data_params, N = 64, gamma = 0.002)
     ngd_sim_params = replace(ngd_sim_params, num_iters = 2000)
 
     gridsize, N, th, epsilon, gamma = get_DataParameters(labyrinth_data_params)
@@ -115,7 +115,7 @@ if __name__ == "__main__":
     print(ngd_sim_params)
     print_bars()
 
-    u_ls = gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, **asdict(labyrinth_data_params),**asdict(ngd_sim_params) )
+    u_ls = gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, **asdict(labyrinth_data_params),**asdict(ngd_sim_params), LAPLACE_SPECTRAL=False )
     print(u_ls)
     fig, axs = plt.subplots( 4, 5, figsize = (14,14) )
 
@@ -123,7 +123,7 @@ if __name__ == "__main__":
 
     print(len(u_ls))
     for ii, u in enumerate(u_ls):
-        axs[ii].imshow(u.cpu().numpy(), cmap='gray', extent=(0,1,0,1))
+        axs[ii].imshow(u.cpu().numpy(), cmap='plasma', extent=(0,1,0,1))
         axs[ii].set_box_aspect(1)
         axs[ii].axes.get_xaxis().set_ticks([])
         axs[ii].axes.get_yaxis().set_ticks([])

@@ -7,37 +7,44 @@ from read import read_csv
 import torch
 import json
 import matplotlib.pyplot as plt
+import pandas as pd
 
 
-def blue_ratio_blocks(u_exp, u_sim, tol=0.25, block_size=16):
+
+def wall_mask_from_labels(L):
+    # L: bool (H,W)
+    W = torch.zeros_like(L, dtype=torch.bool)
+    W[:, 1:] |= (L[:, 1:] != L[:, :-1])
+    W[1:, :] |= (L[1:, :] != L[:-1, :])
+    return W
+
+
+
+@torch.no_grad()
+def quality_scores(u_exp, u_opt, blur_sigma=1.0):
     """
-    Computes blue ratios inside domain walls for local blocks.
-    Returns an array of ratios (one per block).
+    Fisher discriminant & Perimeter functional
     """
-    h, w = u_exp.shape
-    ratios = []
+    # labels from optimized solution
+    L = (u_opt > 0)
 
-    for i in range(0, h - block_size + 1, block_size):
-        for j in range(0, w - block_size + 1, block_size):
-            ue = u_exp[i:i+block_size, j:j+block_size]
-            us = u_sim[i:i+block_size, j:j+block_size]
+    """
+    https://www.wikiwand.com/en/articles/Linear_discriminant_analysis
+    """
+    I1 = u_exp[L]
+    I0 = u_exp[~L]
+    mu1, mu0 = I1.mean(), I0.mean()
 
-            domain_mask = np.abs(us) <= tol
-            if domain_mask.sum() == 0:
-                continue
+    v1 = I1.var(unbiased=True) if I1.numel() > 1 else torch.tensor(0., device=u_exp.device)
+    v0 = I0.var(unbiased=True) if I0.numel() > 1 else torch.tensor(0., device=u_exp.device)
 
-            blue = (ue > 0) & domain_mask
-            ratios.append(blue.sum() / domain_mask.sum())
+    fisher_J = (mu1 - mu0).pow(2) / (v1 + v0 + 1e-12)
+    
+    # boundary calculation
+    W = wall_mask_from_labels(L)
+    perimeter = W.float().sum()
 
-    return np.array(ratios)
-
-def u_overlap(u_sim, u_exp, tol = 0.25):                    
-    #diff = torch.abs(u_exp - u_sim) ** 2 * 0.5
-    #diff = standardize_shift(diff)
-    #new = np.where(np.abs(u_sim) > tol, 0, np.nan)
-    new = torch.where(torch.abs(u_sim) < tol, 10, u_sim)
-    #new = torch.from_numpy(new.astype(np.float32))
-    return u_exp + new
+    return float(fisher_J), float(perimeter), W.float()
 
 
 
@@ -45,9 +52,8 @@ if __name__ == "__main__":
 
     plotting_style()
 
-    PLOT_HIST = False
-    PLOT_DIFF_COMPARISON = True
-    PLOT_ENERGY_CONVERGENCE_COMPARISON = True
+
+    PLOT_ENERGY_CONVERGENCE_COMPARISON = False
 
     dataset = "data_00"
     recording = "003"
@@ -74,86 +80,94 @@ if __name__ == "__main__":
     OUTPUT_PATH = PATHS.BASE_EXPDATA / dataset / "opt" / recording
     u_exp = read_csv(INPUT_PATH / f"{dataset}/csv/mcd_slice_{recording}.csv", "standardize")
 
-    if PLOT_HIST:
-        for gamma in gamma_ls:
-            for _lambda in _lambda_ls:
-                
-                df_energies, u_sim = read_sim_dat_from_csv(OUTPUT_PATH, N, num_iters, gamma, epsilon, _lambda)
-                u_sim = torch.tensor(u_sim.values)
-                print(type(u_sim))
+    records = []
 
-                u_plot = [u_exp, u_sim, u_overlap(u_sim, u_exp) ]
+    bars = ["Fisher discriminant $S(u)$", "Perimeter($u$)"]
 
-                ratios = blue_ratio_blocks(u_exp, u_sim, tol=0.25, block_size=16)
+    THRESHOLD = 0.2
 
-                fig, axs = plt.subplots( 3, 2, figsize = (8,8))
+    # ---------------------------------------------------------------
 
-                for ii, u in enumerate(u_plot):
-                    axs[ii, 0].imshow(u, cmap=colors[ii],origin="lower", extent=(0,1,0,1))
-                    axs[ii, 0].set_box_aspect(1)
-                    axs[ii, 0].axes.get_xaxis().set_ticks([])
-                    axs[ii, 0].axes.get_yaxis().set_ticks([])
-                    axs[ii, 0].set_title(titles[ii])
+    fig, axs = plt.subplots( len(gamma_ls), 2 * len(_lambda_ls), figsize = (18,16) )
 
-                    if ii != 2:
-                        axs[ii, 1].hist(u.ravel(), bins=256, density = True, color=colors_hist[ii])
-                    else:
-                        axs[ii, 1].hist(ratios, bins = 40, density = True)
-                    
-                    axs[ii, 1].set_xlabel("$u_{ij}$")
-                    #axs[ii, 1].set_ylabel("norm. sample distribution $p(u_{ij})$")
-                    axs[ii, 1].set_ylabel("$p(u_{ij})$")
-                    axs[ii, 1].grid(color = "gray")
+    for ii, gamma in enumerate(gamma_ls):
+        for jj, _lambda in enumerate(_lambda_ls):
+
+            df_energies, u_sim = read_sim_dat_from_csv(OUTPUT_PATH, N, num_iters, gamma, epsilon, _lambda)
+            u_sim = torch.tensor(u_sim.values)
+            new = torch.where(torch.abs(u_sim) > 0.2, 0, u_sim)
+
+            fisherJ, perimeter, W = quality_scores(u_exp, u_sim)
+
+            rec = {
+                "gamma": float(gamma),
+                "lambda": float(_lambda),
+                "fisherJ": float(fisherJ),
+                "perimeter": float(perimeter)
+            }
+            records.append(rec)
+
+            if jj == 1:
+                jj = 1 + jj
+            
+            axs[ii, jj+0].imshow(torch.where(torch.abs(u_sim) < THRESHOLD, 10, u_sim), origin="lower", extent=(0,1,0,1))
+            axs[ii, jj+0].set_box_aspect(1)
+            axs[ii, jj+0].axes.get_xaxis().set_ticks([])
+            axs[ii, jj+0].axes.get_yaxis().set_ticks([])
+
+            axs[ii, jj].set_title(f"$P$ = {perimeter:.2f} | $S$ = {fisherJ:.3f}", fontsize = 8)
+
+            axs[ii, jj+1].hist(u_sim.ravel(), bins=256, density = True)
+            axs[ii, jj+1].set_xlabel("$u_{ij}$")
+            #axs[ii, 1].set_ylabel("norm. sample distribution $p(u_{ij})$")
+            axs[ii, jj+1].set_ylabel("$p(u_{ij})$")
+            axs[ii, jj+1].grid(color = "gray")
+
+            axs[ii, jj+1].set_xlim(-1.5, +1.5)
+            
+    
+    fig.canvas.draw()  # ensures positions are compute
+
+    for kk, _lambda in enumerate(_lambda_ls):
+        if kk == 1:
+            kk = 2 + kk
+        bbox = axs[0, kk].get_position()
+        x_center = 0.5 * (bbox.x0 + bbox.x1)
+        y_top = bbox.y1 + 0.02
+        title = f"$\\lambda = {_lambda}$"
+        fig.text(x_center, y_top, title, ha="center", va = "bottom", fontsize=12)
 
 
-                fig.tight_layout()
-                plt.savefig(OUTPUT_PATH / f"recording={recording}_postprocessing_lambda={_lambda}_gamma={gamma}_num-iters={num_iters}.png")
-                #plt.show()
+    for jj, _gamma in enumerate(gamma_ls):
+        _ax  = axs[jj, 0]
+        boox = _ax.get_position()
+        x_left = boox.x0 - 0.02
+        y_center = 0.5 * (boox.y0 + boox.y1)
+        title = f"$\\gamma = {_gamma}$"
+        fig.text(x_left, y_center, title, ha="right", va="center", rotation = "vertical", fontsize=12)
 
-    if PLOT_DIFF_COMPARISON:
-        fig, axs = plt.subplots( len(gamma_ls), len(_lambda_ls), figsize = (3 * len(_lambda_ls), 3 * len(gamma_ls)) )
 
-        for ii, gamma in enumerate(gamma_ls):
-            for jj, _lambda in enumerate(_lambda_ls):
+    df = pd.DataFrame.from_records(records)
 
-                df_energies, u_sim = read_sim_dat_from_csv(OUTPUT_PATH, N, num_iters, gamma, epsilon, _lambda)
+    cut = df["perimeter"].quantile(0.6)
+    df_filt = df[df["perimeter"] <= cut].copy()
 
-                u_sim = torch.tensor(u_sim.values)
-                
-                im = axs[ii, jj].imshow(u_overlap(u_sim, u_exp), cmap= "viridis", origin="lower", extent=(0,1,0,1))
-                axs[ii, jj].set_box_aspect(1)
-                axs[ii, jj].axes.get_xaxis().set_ticks([])
-                axs[ii, jj].axes.get_yaxis().set_ticks([])
-                #axs[ii, jj].set_title(f"$\\gamma = {gamma:.3f}$")
+    print("Best parameter constellation: ")
+    best = df_filt.sort_values(["fisherJ", "perimeter"], ascending = [False, True])
+    print(best)
+    print(best.index)
 
-        #fig.tight_layout()
-        fig.canvas.draw()  # ensures positions are compute
+    fig.suptitle("Fisher discriminant $S(u)$ and Perimeter $P(u)$")
 
-        for kk, _lambda in enumerate(_lambda_ls):
-            bbox = axs[0, kk].get_position()
-            x_center = 0.5 * (bbox.x0 + bbox.x1)
-            y_top = bbox.y1 + 0.02
-            title = f"$\\lambda = {_lambda}$"
-            fig.text(x_center, y_top, title, ha="center", va = "bottom", fontsize=12)
+    plt.show()
 
-        
-        for jj, _gamma in enumerate(gamma_ls):
-            _ax  = axs[jj, 0]
-            boox = _ax.get_position()
-            x_left = boox.x0 - 0.02
-            y_center = 0.5 * (boox.y0 + boox.y1)
-            title = f"$\\gamma = {_gamma}$"
-            fig.text(x_left, y_center, title, ha="right", va="center", rotation = "vertical", fontsize=12)
-
-        plt.savefig(OUTPUT_PATH / f"recording={recording}_postprocessing_overview.png")
-        #plt.show()
 
     if PLOT_ENERGY_CONVERGENCE_COMPARISON:
-        
+
         fig = plt.figure(figsize=(8, 6))
 
         dict = {}
-    
+
         for jj, _lambda in enumerate(_lambda_ls):
             e_ls = []
             for ii, gamma in enumerate(gamma_ls):
@@ -172,4 +186,4 @@ if __name__ == "__main__":
         plt.grid(color = "gray")
         plt.savefig(OUTPUT_PATH / f"recording={recording}_postprocessing_energy_convergence.png", dpi = 300)
         plt.show()
-        
+
