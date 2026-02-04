@@ -22,12 +22,8 @@ if __name__ == "__main__":
 
     LIVE_PLOT = False
     DATA_LOG = False
-
-    #gamma_start_fd = 0.00008
-    #gamma_start_spectral = 0.00014
     
-    labyrinth_data_params = replace(labyrinth_data_params, N = 64, gamma = 0.0008)
-
+    labyrinth_data_params = replace(labyrinth_data_params, N = 64, gamma = 0.08, epsilon = 0.01)
 
     #gridsize, N, th, epsilon, gamma = get_DataParameters(labyrinth_data_params)
     N = 64
@@ -54,5 +50,5 @@ if __name__ == "__main__":
         axs[ii, 1].plot(e)
         axs[ii, 1].set_title("Energy evolution")
 
-    plt.savefig(FOLDER_PATH / "laplace_evaluation_comparison.png", dpi = 300)
+    plt.savefig(FOLDER_PATH / "laplace_evaluation_comparison_3.png", dpi = 300)
     plt.show()

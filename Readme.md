@@ -80,9 +80,7 @@ Magnetic Image mapping:
 - single domain evolution -> X
 
 ### Open:
-#### High Priority:
 
-- Check runtimes by multiple runs to get an appropriate estimator -> runtime.py script
 - Standardize plotting schematic + LaTex Font integration (still open: axis + latex font)
 
 

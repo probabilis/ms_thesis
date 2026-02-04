@@ -4,20 +4,20 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 from dataclasses import asdict
 
-from pattern_formation import *
+from pattern_formation import define_spaces, fourier_multiplier, energy_value, grad_g, initialize_u0_random, prox_h, dtype_real, device
 from params import labyrinth_data_params, pgd_sim_params, get_DataParameters
 from env_utils import PATHS, print_bars, get_args, plotting_style, plotting_schematic, log_data
 # ---------------------------------------------------------------
 
-def gradient_descent_proximal(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamma, epsilon, tau, c0, num_iters, prox_newton_iters, tol_newton, STOP_BY_TOL = True, ENERGY_STOP_TOL = 1e-6):
-
+def gradient_descent_proximal(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamma, epsilon, tau, c0, num_iters, prox_newton_iters, tol_newton, STOP_BY_TOL = True, ENERGY_STOP_TOL = 1e-12):
+    print("----------------Prox.Gradient Descent Optimizer----------------")
     x, k, modk, modk2 = define_spaces(gridsize, N)
 
     sigma_k = fourier_multiplier(th * modk).to(dtype_real).to(device)
-    M_k = sigma_k + gamma * epsilon * modk2 # M_k multiplier for the quadratic term
+    M_k = sigma_k + gamma * epsilon * modk2 * (2 * torch.pi)**2
 
-    # --- main proximal-gradient loop ---
-    energies = [energy_value(gamma, epsilon, N, u0, th, modk, modk2, c0)]
+
+    energies = [energy_value(gamma, epsilon, N, u0, M_k, c0)]
     
     if LIVE_PLOT or DATA_LOG:
         fig1, ax1 = plt.subplots(figsize = (14,12))
@@ -37,7 +37,7 @@ def gradient_descent_proximal(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N,
             u = prox_h(v, tau, gamma=gamma, eps=epsilon, c0=c0,maxiter=prox_newton_iters, tol=tol_newton)
 
             try:
-                E = energy_value(gamma, epsilon, N, u, th, modk, modk2, c0)
+                E = energy_value(gamma, epsilon, N, u, M_k, c0)
             except Exception as e:
                 E = None
 

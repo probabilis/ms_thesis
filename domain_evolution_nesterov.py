@@ -24,7 +24,9 @@ def gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N,
     # --- spaces ---
     if LAPLACE_SPECTRAL is None:
         LAPLACE_SPECTRAL = True
-        print("LaPlace Spectral Calculation: ", LAPLACE_SPECTRAL)
+    
+    LAPLACE_SPECTRAL = True
+    print("LaPlace Spectral Calculation: ", LAPLACE_SPECTRAL)
     
     if LAPLACE_SPECTRAL:
         energies = [energy_value(gamma, epsilon, N, u0, th, modk, modk2, c0)]
@@ -36,7 +38,7 @@ def gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N,
     
 
     # M_k for spectral calculation of LAPLACE
-    M_k = sigma_k + gamma * epsilon * modk2 
+    M_k = sigma_k + gamma * epsilon * modk2 ** (2*torch.pi)**2
 
     # --- initialization ---
     u_prev = u0.clone()
@@ -44,6 +46,9 @@ def gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N,
     t_prev = 1.0
 
     u_ls = []
+
+    PBC = False
+    print("PBC", PBC)
 
     # --- main loop ---
     try:
@@ -58,7 +63,7 @@ def gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N,
             if LAPLACE_SPECTRAL:
                 ggrad = grad_g(y, M_k)
             else:
-                ggrad = grad_fd(y, sigma_k, N, gridsize, gamma, epsilon, c0)
+                ggrad = grad_fd(y, sigma_k, N, gridsize, gamma, epsilon, c0, PBC)
             v = y - tau * ggrad
 
             # 3) backward step (proximal operator through double well)
@@ -73,7 +78,7 @@ def gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N,
             if LAPLACE_SPECTRAL:
                 E = energy_value(gamma, epsilon, N, u_curr, th, modk, modk2, c0)
             else:
-                E = energy_value_fd(u_curr, sigma_k, N, gamma, epsilon, c0)
+                E = energy_value_fd(u_curr, sigma_k, N, gamma, epsilon, c0, PBC)
             
             energy_diff = energies[-1] - E
             energies.append(E)
@@ -116,7 +121,7 @@ if __name__ == "__main__":
     print_bars()
 
     u_ls = gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, **asdict(labyrinth_data_params),**asdict(ngd_sim_params), LAPLACE_SPECTRAL=False )
-    print(u_ls)
+    #print(u_ls)
     fig, axs = plt.subplots( 4, 5, figsize = (14,14) )
 
     axs = axs.ravel()
@@ -130,5 +135,5 @@ if __name__ == "__main__":
         axs[ii].set_title(f"$ii = {ii+1}$")
 
     fig.tight_layout()
-    plt.savefig(FOLDER_PATH / f"domain_evolution.png", dpi = 300)
+    #plt.savefig(FOLDER_PATH / f"domain_evolution.png", dpi = 300)
     plt.show()

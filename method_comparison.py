@@ -21,9 +21,10 @@ def convergence_comparison():
     # multiple CN instances
     energies_cn = []
     for max_it_fixpoint in max_it_fixpoint_ls:
-        max_it = num_iters / max_it_fixpoint
-        _, energies = adapted_crank_nicolson(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, epsilon, gamma, dt, max_it_fixpoint, max_it, tol, stop_limit, c0, STOP_BY_TOL)
-        energies_cn.append(energies)
+        for dt in dt_ls:
+            max_it = num_iters
+            _, energies = adapted_crank_nicolson(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, epsilon, gamma, dt, max_it_fixpoint, max_it, tol, stop_limit, c0, STOP_BY_TOL)
+            energies_cn.append(energies)
 
     _, energies_gd = gradient_descent(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamma, epsilon, c0, alpha, num_iters, LAPLACE_SPECTRAL=True, STOP_BY_TOL = STOP_BY_TOL)
 
@@ -35,8 +36,15 @@ def convergence_comparison():
 
     fig, ax = plt.subplots(1,1, figsize = (12,10))
 
-    for ii, _cn in enumerate(energies_cn):
-        ax.plot(_cn, label= fr"Crank Nicolson $N_{{fixpoint}}$ = {max_it_fixpoint_ls[ii]}", linewidth = 2, color = colors_cn[ii])
+    colors_cn = ['cornflowerblue', 'royalblue','blue', 'black']
+    colors_gd = ['lightcoral', 'mediumseagreen', 'red']
+
+    ii = 0
+    for max_it_fixpoint in max_it_fixpoint_ls:
+            for dt in dt_ls:
+                
+                ax.plot(energies_cn[ii], label= fr"Crank Nicolson $N_{{fixpoint}}$ = {max_it_fixpoint} | $dt$ = {dt}", linewidth = 2, color = colors_cn[ii])
+                ii += 1
 
     ax.plot(energies_gd, label="Gradient Descent", linewidth = 3, color =  colors_gd[0])
     ax.plot(energies_prox, label="Proximal Gradient Descent", linewidth = 3, color = colors_gd[1])
@@ -51,7 +59,7 @@ def convergence_comparison():
     ax.grid(True)
     fig.tight_layout()
 
-    plt.savefig(FOLDER_PATH / f"energy_convergence_comparison_N={N}_nmax={num_iters}_gamma={gamma}_eps={epsilon}.png", dpi = 300)
+    #plt.savefig(FOLDER_PATH / f"energy_convergence_comparison_N={N}_nmax={num_iters}_gamma={gamma}_eps={epsilon}.png", dpi = 300)
     plt.show()
 
 def convegence_comparison_by_tol():
@@ -112,40 +120,34 @@ if __name__ == "__main__":
     # ---------------------------------------------------------------
 
     gridsize = 1.0
-    N = 256
-    epsilon = 1/50
-    gamma = 1/200
+    N = 64
+    epsilon = 1/100
+    gamma = 1/2000
+
     c0 = 9/32
     th = 1.0
 
-    alpha = 1e-4       # step size for plain GD
-    tau   = 5e-3       # step size for prox-based methods 
-            # number of iterations for all methods
-    ENERGY_STOP_TOL = 1e-8  # energy stopping tolerance if STOP_BY_TOL is true for methods 
+    alpha = 0.1       # step size for plain GD
+    tau   = 0.1       # step size for prox-based methods 
+            
+    ENERGY_STOP_TOL = 1e-12  # energy stopping tolerance if STOP_BY_TOL is true for methods 
     stop_limit = ENERGY_STOP_TOL
-    tol = 1e-6
+    tol = 1e-4
 
-    prox_newton_iters = 20
+    prox_newton_iters = 10
     tol_newton = 1e-6
 
-    max_it_fixpoint_ls = [1, 2, 5]
-    dt = 1/10
+    max_it_fixpoint_ls = [1, 5]
+    dt_ls = [0.1, 1.0]
 
-    num_iters = 1_000 
-
-    # ---------------------------------------------------------------
-    x, k, modk, modk2 = define_spaces(gridsize, N)
-
-    sigma_k = fourier_multiplier(th * modk).to(dtype_real).to(device)
-    M_k = sigma_k + gamma * epsilon * modk2
+    num_iters = 5_000  # number of iterations for all methods
 
     # ---------------------------------------------------------------
     u0 = initialize_u0_random(N, REAL = True)
     # ---------------------------------------------------------------
 
     
-    colors_cn = ['cornflowerblue', 'royalblue','blue']
-    colors_gd = ['lightcoral', 'mediumseagreen', 'red']
+
 
 
     convergence_comparison()

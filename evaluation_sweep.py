@@ -192,6 +192,7 @@ def different_image_lambdas_and_gammas(exp_data_params, ngd_sim_params, SIMULATE
     print_bars()
     print(exp_data_params)
     print(ngd_sim_params)
+    print(f"STOP_BY_TOL = {STOP_BY_TOL}")
     print_bars()
 
     _lambda_ls = [0.001, 0.01]
@@ -247,7 +248,6 @@ def different_image_lambdas_and_gammas(exp_data_params, ngd_sim_params, SIMULATE
     #fig.tight_layout()
     fig.canvas.draw()  # ensures positions are compute
     for kk, _lambda in enumerate(_lambda_ls):
-        # Get positions of the two columns
         ax_left  = axs[0, 2*kk]
         ax_right = axs[0, 2*kk + 1]
 
@@ -255,7 +255,7 @@ def different_image_lambdas_and_gammas(exp_data_params, ngd_sim_params, SIMULATE
         bbox_r = ax_right.get_position()
 
         x_center = 0.5 * (bbox_l.x0 + bbox_r.x1)
-        y_top = bbox_l.y1 + 0.02  # small offset above top row
+        y_top = bbox_l.y1 + 0.02
 
         title = f"$\\lambda = {_lambda}$"
 

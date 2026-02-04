@@ -9,35 +9,27 @@ from params import labyrinth_data_params, get_DataParameters, get_SimulationPara
 from params import pgd_sim_params as ngd_sim_params
 
 from env_utils import PATHS, print_bars, get_args, plotting_style, plotting_schematic, log_data
-
-from pattern_formation import fourier_multiplier, energy_value, dtype_real, device, initialize_u0_random, define_spaces, grad_g
-from pattern_formation import energy_value_fd, grad_fd
+from pattern_formation import fourier_multiplier, energy_value, energy_value_fd,grad_g, grad_fd, initialize_u0_random, define_spaces, dtype_real, device
 
 # ---------------------------------------------------------------
 
 
-def gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamma, epsilon, tau, c0, num_iters, prox_newton_iters, tol_newton, LAPLACE_SPECTRAL = None, STOP_BY_TOL = True, ENERGY_STOP_TOL = 1e-10):
+def gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamma, epsilon, tau, c0, num_iters, prox_newton_iters, tol_newton, LAPLACE_SPECTRAL = True, STOP_BY_TOL = True, ENERGY_STOP_TOL = 1e-10):
     # Nesterov proximal gradient with adaptive restart
-
+    print("----------------Nesterov Gradient Descent Optimizer----------------")
     x, k, modk, modk2 = define_spaces(gridsize, N)
-
-    # --- spaces ---
-    if LAPLACE_SPECTRAL is None:
-        LAPLACE_SPECTRAL = True
-        print("LaPlace Spectral Calculation: ", LAPLACE_SPECTRAL)
     
+    print("LaPlace Spectral Calculation: ", LAPLACE_SPECTRAL)
+
+    sigma_k = fourier_multiplier(th * modk).to(dtype_real).to(device)
+    M_k = sigma_k + gamma * epsilon * modk2 * (2*torch.pi)**2  # M_k for spectral calculation of LAPLACE
+    
+
     if LAPLACE_SPECTRAL:
-        energies = [energy_value(gamma, epsilon, N, u0, th, modk, modk2, c0)]
-        sigma_k = fourier_multiplier(th * modk).to(dtype_real).to(device)
-        
+        energies = [energy_value(gamma, epsilon, N, u0, M_k, c0)]
     else:        
-        sigma_k = fourier_multiplier(th * modk).to(dtype_real).to(device)
         energies = [energy_value_fd(u0, sigma_k, N, gamma, epsilon, c0)]
     
-
-    # M_k for spectral calculation of LAPLACE
-    M_k = sigma_k + gamma * epsilon * modk2 
-
     # --- initialization ---
     u_prev = u0.clone()
     u_curr = u0.clone()
@@ -51,7 +43,6 @@ def gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N,
 
     # --- main loop ---
     try:
-
         for n in tqdm(range(1, num_iters+1), desc="Nesterov GD"):
             # 1) extrapolation
             t_curr = 0.5 * (1.0 + (1.0 + 4.0 * t_prev * t_prev)**0.5)
@@ -62,7 +53,7 @@ def gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N,
             if LAPLACE_SPECTRAL:
                 ggrad = grad_g(y, M_k)
             else:
-                ggrad = grad_fd(y, sigma_k, N, gridsize, gamma, epsilon, c0)
+                ggrad = grad_fd(y, sigma_k, N, gridsize, gamma, epsilon, c0, PBC = True)
             v = y - tau * ggrad
 
             # 3) backward step (proximal operator through double well)
@@ -75,9 +66,9 @@ def gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N,
 
             # 5) energy evaluation
             if LAPLACE_SPECTRAL:
-                E = energy_value(gamma, epsilon, N, u_curr, th, modk, modk2, c0)
+                E = energy_value(gamma, epsilon, N, u_curr, M_k, c0)
             else:
-                E = energy_value_fd(u_curr, sigma_k, N, gamma, epsilon, c0)
+                E = energy_value_fd(u_curr, sigma_k, N, gamma, epsilon, c0, PBC = True)
             
             energy_diff = energies[-1] - E
             energies.append(E)

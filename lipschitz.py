@@ -13,7 +13,7 @@ gridsize = 1.0
 h = gridsize / N
 
 gamma = 0.005
-eps = 0.02
+eps = 0.01
 
 x, k, modk, modk2 = define_spaces(gridsize, N)
 

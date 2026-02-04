@@ -24,49 +24,20 @@ def ifft2_real(x_hat):
 
 # ------------------------------------------------------------------
 
-def fourier_multiplier(A):
+def fourier_multiplier(K):
     """
     Fourier Multiplier Dipolar
     """
-    sig = torch.zeros_like(A)
-    zero_freq = (torch.abs(A) < 1e-14)
-    small = (torch.abs(A) >= 1e-14) & (torch.abs(A) < 1e-6)
-    large = (torch.abs(A) >= 1e-6)
+    sig = torch.zeros_like(K)
+    zero_freq = (torch.abs(K) < 1e-14)
+    small = (torch.abs(K) >= 1e-14) & (torch.abs(K) < 1e-6)
+    large = (torch.abs(K) >= 1e-6)
     
     sig[zero_freq] = 1
-    sig[small] = 1 - torch.pi * torch.abs(A[small])
-    sig[large] = (1 - torch.exp(-2 * torch.pi * torch.abs(A[large]))) / (2 * torch.pi * torch.abs(A[large]))
+    sig[small] = 1 - torch.pi * torch.abs(K[small])
+    sig[large] = (1 - torch.exp(-2 * torch.pi * torch.abs(K[large]))) / (2 * torch.pi * torch.abs(K[large]))
     
     return sig
-
-# ------------------------------------------------------------------
-
-def fourier_multiplier_simple(k_mag):
-    """ 
-    1 / k fourier multiplier
-    """
-    k_safe = torch.where(k_mag < 1e-12, torch.tensor(1e-12), k_mag)
-    return 1 / k_safe
-
-# ------------------------------------------------------------------
-
-def fourier_multiplier_dipolar(k_mag, th):
-    """
-    Dipolar interaction kernel for magnetic thin films
-    For thin films, the demagnetization factor depends on thickness th
-    
-    Physical form: σ(k) = 1 - exp(-|k|*th) for thin films
-    """
-    # Avoid numerical issues at k=0
-    k_safe = torch.where(k_mag < 1e-12, torch.tensor(1e-12, dtype=dtype_real, device=device), k_mag)
-    
-    # Dipolar kernel for thin films
-    sigma = 1.0 - torch.exp(-k_safe * th)
-    
-    # Handle k=0 case properly
-    sigma = torch.where(k_mag < 1e-12, torch.tensor(0.0, dtype=dtype_real, device=device), sigma)
-    
-    return sigma
 
 # ------------------------------------------------------------------
 
@@ -138,18 +109,14 @@ def laplacian_neumann(u: torch.Tensor, dx: float) -> torch.Tensor:
 # ------------------------------------------------------------------
 
 def define_spaces(gridsize, N):
-    x = gridsize / N * torch.arange(N, dtype=dtype_real, device=device) # position array
-    
     # -- k, x, kx, ky, modk & modk2 --
-    #k = np.concatenate([np.arange(0, N // 2), np.arange(-N // 2, 0)])
-    # torch.arange(-N // 2 + 1, 1) ... # +[0..+N,-N..0]
-    #k = torch.cat([torch.arange(0, N // 2, dtype=dtype_real, device = device), torch.arange(-N // 2, 0, dtype=dtype_real, device = device)])
 
+    x = gridsize / N * torch.arange(N, dtype=dtype_real, device=device) # position array
     h = gridsize / N
-    k = torch.fft.fftfreq(N, d=h).to(device) * 2 * torch.pi
+    k = torch.fft.fftfreq(N, d=h).to(device) #* 2 * torch.pi -> excluded it for same structure as condette proposed (for consistent Fourier Multiplier)
+    # the same as: torch.cat([torch.arange(0, N // 2, dtype=dtype_real, device = device), torch.arange(-N // 2, 0, dtype=dtype_real, device = device)])
 
     kx, ky = torch.meshgrid(k, k, indexing='ij')
-    
     modk2 = (kx**2 + ky**2).to(dtype_real)
     modk = torch.sqrt(modk2).to(dtype_real)
     
@@ -200,14 +167,6 @@ def initialize_u0_random(N, REAL = False):
 
 # ------------------------------------------------------------------
 
-def initialize_u0_image(file_path):
-    image = Image.open(file_path).convert('L')
-    np_array = np.array(image)
-    u0 = torch.from_numpy(np_array).float() / 255.0  # PyTorch tensor -> normalize to [0.0, 1.0]
-    return u0
-
-# ------------------------------------------------------------------
-
 def initialize_u0_sin(N, x, noise_level = 0.01):
     x1, x2 = torch.meshgrid(x, x)
 
@@ -224,19 +183,22 @@ def grad_g(u, M_k):
     gradient of g(u) via spectral multiplication 
     grad_g = iFFT[ ( FM(|k|) + gamma*eps*|k|² ) * FFT(u) ] 
     """
-    Fu = torch.fft.fft2(u, norm='ortho') # should work
+    Fu = torch.fft.fft2(u, norm='ortho')
     return torch.fft.ifft2(M_k * Fu, norm='ortho').real
 
 # ------------------------------------------------------------------
 
-def grad_fd(u, sigma_k, N, gridsize, gamma, epsilon, c0):
+def grad_fd(u, sigma_k, N, gridsize, gamma, epsilon, c0, PBC = True):
     """
     Gradient of Energy functional with Finite Difference method
     """
-
+    PBC = True
     # Local FD gradient (–γ ε Δu)
-    lap = laplacian_neumann(u, gridsize/N)
-    grad_loc = -(gamma * epsilon) * lap #* 0.1
+    if PBC:
+        lap = laplacian(u, gridsize/N)
+    else:
+        lap = laplacian_neumann(u, gridsize/N)
+    grad_loc = -(gamma * epsilon) * lap
 
     # Nonlocal gradient (σ_k * Fu)
     Fu = torch.fft.fft2(u, norm='ortho')
@@ -266,16 +228,16 @@ def grad_neumann_centered(u: torch.Tensor, dx: float):
     return uy, ux
 
 
-def energy_value_fd(u, sigma_k, N, gamma, epsilon, c0):
+def energy_value_fd(u, sigma_k, N, gamma, epsilon, c0, PBC = True):
     """
     Energy functional with finite difference
     """
-
-    ux = u - torch.roll(u, 1, 0)
-    uy = u - torch.roll(u, 1, 1)
+    if PBC: # Periodic boundary condition
+        ux = u - torch.roll(u, 1, 0)
+        uy = u - torch.roll(u, 1, 1)
     
-    #dx = 1/N
-    #uy, ux = grad_neumann_centered(u, 1/N)
+    else:
+        uy, ux = grad_neumann_centered(u, 1/N)
 
     # local gradient energy
     E_loc = 0.5 * (gamma * epsilon) * torch.sum(ux*ux + uy*uy) / (N**2)
@@ -292,24 +254,24 @@ def energy_value_fd(u, sigma_k, N, gamma, epsilon, c0):
 
 # ------------------------------------------------------------------
 
-def energy_value(gamma, epsilon, N, u, th, modk, modk2, c0):
+def energy_value(gamma, epsilon, N, u, M_k, c0):
     """
     E = DW + LaPlace + FM
+    spectral variant
     """
 
     W = double_well_potential(u, c0)
     ftu = torch.fft.fft2(u) / N**2
-    S = fourier_multiplier(th * modk).to(dtype_real).to(device)
-
+    
     energy = (gamma / epsilon) * torch.sum(W) / N**2
-    energy += 0.5 * torch.sum( (S + gamma * epsilon * modk2) * torch.abs(ftu)**2 )
+    energy += 0.5 * torch.sum( M_k * torch.abs(ftu)**2 )
 
     return energy.item()
 
 # ------------------------------------------------------------------
 
 def energy_tensor(u, gamma, epsilon, N, th, modk, modk2, c0, sigma_k): 
-    # same as energy_value but returns a torch scalar (not .item()) for autograd backtracking
+    # same as energy_value but returns a torch scalar (not .item()) for Torch autograd backtracking as reference
     W = double_well_potential(u, c0)
     ftu = torch.fft.fft2(u) / (N ** 2)                 
     S = sigma_k
@@ -318,6 +280,49 @@ def energy_tensor(u, gamma, epsilon, N, th, modk, modk2, c0, sigma_k):
     return e1 + e2
 
 # ------------------------------------------------------------------
+
+def prox_h(v, tau, gamma, eps, c0, maxiter, tol):
+
+    # --- proximal operator for h(x) = (gamma/epsilon) * c0 * (1 - x^2)^2 ---
+    # via vectorized Newton method, returns prox evaluated elementwise
+    # Ref.: https://stackoverflow.com/questions/30191851/vectorize-a-newton-method-in-python-numpy
+    # minimize 0.5*(x-v)^2 + tau*(gamma/eps)*c0*(1-x^2)^2
+
+    lam = tau * (gamma / eps) * c0
+    x = v.clone()
+
+    for i in range(maxiter):
+
+        grad = x - v - 4.0 * lam * x * (1.0 - x * x)
+        hess = 1.0 + lam * (4.0 * (x * x - 1) + 8.0 * x * x)
+        hess_safe = torch.where(torch.abs(hess) < 1e-12, torch.sign(hess) * 1e-12, hess)
+        step = grad / hess_safe # ratio for newtons method
+
+        # damped update (clamp step to avoid runaway)
+        # use backtracking-like damping factor to ensure phi decreases (simple safeguard)
+        # Ref.: claude.ai + stackoverflow
+        alpha = 1.0
+        x_new = x - alpha * step
+
+        max_jump = 0.5
+        delta = x_new - x
+        overshoot = torch.abs(delta) > max_jump
+        if overshoot.any():
+            # scale down the step where overshooting
+            scale = max_jump / (torch.abs(delta) + 1e-16)
+            x_new = x + delta * torch.where(overshoot, scale, torch.ones_like(scale))
+
+        # check convergence (max abs difference)
+        if torch.max(torch.abs(x_new - x)) < tol:
+            x = x_new
+            break
+        x = x_new
+
+    return x
+
+# ------------------------------------------------------------------
+# ------------------------------------------------------------------
+# Condette
 
 def N_eps(U_np1, U_n, epsilon, gamma, c0):
     return 2 * gamma * c0 / epsilon * (U_np1 + U_n) * (1 - (torch.abs(U_np1) ** 2 + torch.abs(U_n) ** 2) / 2)
@@ -367,46 +372,5 @@ def fixpoint(U_0, L_eps, dt, N, epsilon, gamma, Nmax, tol, c0):
         conv = True
 
     return ii, U_n, error, conv
-
-# ------------------------------------------------------------------
-
-def prox_h(v, tau, gamma, eps, c0, maxiter, tol):
-
-    # --- proximal operator for h(x) = (gamma/epsilon) * c0 * (1 - x^2)^2 ---
-    # via vectorized Newton method, returns prox evaluated elementwise
-    # Ref.: https://stackoverflow.com/questions/30191851/vectorize-a-newton-method-in-python-numpy
-    # minimize 0.5*(x-v)^2 + tau*(gamma/eps)*c0*(1-x^2)^2
-
-    lam = tau * (gamma / eps) * c0
-    x = v.clone()
-
-    for i in range(maxiter):
-
-        grad = x - v - 4.0 * lam * x * (1.0 - x * x)
-        hess = 1.0 + lam * (4.0 * (x * x - 1) + 8.0 * x * x)
-        hess_safe = torch.where(torch.abs(hess) < 1e-12, torch.sign(hess) * 1e-12, hess)
-        step = grad / hess_safe # ratio for newtons method
-
-        # damped update (clamp step to avoid runaway)
-        # use backtracking-like damping factor to ensure phi decreases (simple safeguard)
-        # Ref.: claude.ai + stackoverflow
-        alpha = 1.0
-        x_new = x - alpha * step
-
-        max_jump = 0.5
-        delta = x_new - x
-        overshoot = torch.abs(delta) > max_jump
-        if overshoot.any():
-            # scale down the step where overshooting
-            scale = max_jump / (torch.abs(delta) + 1e-16)
-            x_new = x + delta * torch.where(overshoot, scale, torch.ones_like(scale))
-
-        # check convergence (max abs difference)
-        if torch.max(torch.abs(x_new - x)) < tol:
-            x = x_new
-            break
-        x = x_new
-
-    return x
 
 # ------------------------------------------------------------------

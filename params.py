@@ -85,10 +85,10 @@ def get_SimulationParamters(sp : Optional[Union[CN_SimulationParameters,GD_Simul
 # Labyrinth data parameters
 labyrinth_data_params = DataParameters(
 gridsize = 1,
-N = 128,
+N = 64,
 th = 1.0,
 epsilon = 1/100,
-gamma = 1/200
+gamma = 1/2000
 )
 
 exp_data_params = replace(labyrinth_data_params, N = 664)
@@ -105,30 +105,29 @@ dt = 1/10,
 max_it_fixpoint = 40,
 max_it = 50_000,
 tol = 1e-6,
-stop_limit = 1e-8,
+stop_limit = 1e-12,
 c0 = 9/32
 )
 
 # Gradient Descent params
 gd_sim_params = GD_SimulationParameters(
-num_iters = 1_000_000,
+num_iters = 10_000,
 c0 = 9/32,
-alpha = 1e-4
+alpha = 0.1 # ~0.35 save learning rate for the simulation / see ~/lipschitz.py 
 )
 
 # PGD sim params
 pgd_sim_params = PGD_SimulationParameters(
-tau = 5e-3,              # proximal gradient step size
-num_iters = 20_000,     # total iterations
+tau = 0.1,              # proximal gradient step size
+num_iters = 10_000,     # total iterations
 prox_newton_iters = 20,  # iterations for prox Newton
 tol_newton = 1e-8,       # stop tol inside prox
 c0 = 9/32)
-
 
 # ----------------------------------------- #
 
 sim_config = SimulationConfig(
     LAPLACE_SPECTRAL = False,
     STOP_BY_TOL = True,
-    ENERGY_STOP_TOL = 1e-10
+    ENERGY_STOP_TOL = 1e-12
 )

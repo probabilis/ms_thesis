@@ -1,11 +1,11 @@
 import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
+import matplotlib.mlab as mlab
 from pathlib import Path
-from PIL import Image
 import numpy as np
 import torch
 import pandas as pd
 from scipy import ndimage as ndi
+from scipy.stats import norm
 from skimage import exposure, filters, morphology, measure
 from sklearn.mixture import GaussianMixture
 from skimage.morphology import disk
@@ -100,8 +100,7 @@ def read_gmm(CLEAN_DOMAINS = False):
 
     return y
 
-
-def read_csv(_FILE_PATH, method : Literal["raw","standardize","shift", "clipped"], PLOT = False):
+def read_csv_old(_FILE_PATH, method : Literal["raw","standardize","shift", "clipped"], PLOT = False):
 
     """
     Plotting 4 different configurations of the experimental magnetic structure.
@@ -170,6 +169,76 @@ def read_csv(_FILE_PATH, method : Literal["raw","standardize","shift", "clipped"
         return torch.from_numpy(img_standardize_shift.astype(np.float32))
 
 
+# above functions can be deleted
+# ----------------------------
+
+
+def read_csv(FILE_PATH, PLOT = False, deltaN = 180):
+
+    """
+    Read function for raw saved MCD data (*.csv format -> already converted from *.tif to *.csv by preprocessing.py script)
+    """
+
+    img = pd.read_csv(FILE_PATH, header=None).values.astype(np.float32)
+    img[np.isnan(img)] = 0
+
+    # 2) crop ROI
+    N = img.shape[0]
+    print("Initial image size:", N)
+    roi = img[deltaN:N-deltaN, deltaN:N-deltaN]
+    roi_size = roi.shape[0]
+    print("Reduce image size:", roi_size)
+
+    # 3) standardization 
+    #m, s = np.median(roi), np.median(np.abs(roi - np.median(roi))) + 1e-6
+    m, s = np.mean(roi), np.std(roi)
+    img_standardize = (roi - m) / s
+
+    img_plot = [roi, img_standardize]
+    img_titles = [f"Raw MCD image / $ROI$ = {roi_size}$\\times${roi_size}", "Standardized $|\\sigma| = 1$"]
+
+    if PLOT:
+        plotting_style()
+
+        fig, axs = plt.subplots(2, 2, figsize = (8,8))
+
+        for ii, img in enumerate(img_plot):
+            axs[ii, 0].imshow(img, cmap='gray',origin="lower", extent=(0,1,0,1))
+            axs[ii, 0].axes.get_xaxis().set_ticks([])
+            axs[ii, 0].axes.get_yaxis().set_ticks([])
+
+
+            
+            axs[ii, 1].hist(img.ravel(), bins=32, density = True,alpha=0.6, color='b')
+            
+            if ii == 1:
+                xmin, xmax = axs[ii, 1].get_xlim()
+                ymin, ymax = axs[ii, 1].get_ylim()
+                x = np.linspace(xmin, xmax, 100)
+                (mu, std) = norm.fit(img.ravel())
+
+                p = norm.pdf(x, mu, std)
+                axs[ii, 1].plot(x, p, 'k', linewidth=2)
+                axs[ii, 1].vlines(mu, ymin, ymax, color = "cornflowerblue", linewidth = 3, linestyle = "--", label = f"$\\mu = ${mu:.3f}")
+                axs[ii, 1].vlines(mu + std, ymin, ymax/2, color = "salmon", linewidth = 3, linestyle = "--", label = f"$\\sigma = ${std:.3f}")
+                axs[ii, 1].vlines(mu - std, ymin, ymax/2, color = "salmon", linewidth = 3, linestyle = "--")
+                axs[ii, 1].legend(loc = "lower right")
+
+            axs[ii, 1].set_title(img_titles[ii])
+            axs[ii, 1].grid(color = "gray")
+            ymin, ymax = axs[ii, 1].get_ylim()
+            xmin, xmax = axs[ii, 1].get_xlim()
+            axs[ii, 1].set_xticks(np.round(np.linspace(xmin, xmax, 4), 2))
+            axs[ii, 1].set_yticks(np.round(np.linspace(ymin, ymax, 4), 2))
+
+        fig.tight_layout()
+        #fig.savefig(_FILE_PATH.with_suffix(".png"), dpi = 300)
+        plt.show()
+        
+    return torch.from_numpy(img_standardize.astype(np.float32))
+
+
 if __name__ == "__main__":
-    read_csv(Path("data/expdata/data_00/csv/mcd_slice_004.csv"), "standardize", PLOT = True)
+    #read_csv_old(Path("data/expdata/data_00/csv/mcd_slice_004.csv"), "standardize", PLOT = True)
+    read_csv(Path("data/expdata/data_00/csv/mcd_slice_004.csv"), PLOT = True)
 
