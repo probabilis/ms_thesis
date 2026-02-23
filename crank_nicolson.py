@@ -16,8 +16,8 @@ from env_utils import PATHS, get_args, plotting_style, plotting_schematic, log_d
 # ---------------------------------------------------------------
 
 def adapted_crank_nicolson(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, epsilon, gamma, dt, max_it_fixpoint, max_it, tol, stop_limit, c0, STOP_BY_TOL = True):
+    
     # Adapted Crank-Nicolson Schematic (Reference Condette Paper)
-    print("----------------Adapt.CrankNicolson Optimizer----------------")
     x, k, modk, modk2 = define_spaces(gridsize, N)
 
     #print(modk)
@@ -52,7 +52,7 @@ def adapted_crank_nicolson(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th
                 print("Converged: ", energy_diff)
                 break
 
-            ii_fp, u_np1, err, conv = fixpoint(u_n, L, dt, N, epsilon, gamma, max_it_fixpoint, tol, c0)
+            ii_fp, u_np1, err, conv, energies_fixpoint = fixpoint(u_n, L, dt, N, epsilon, gamma, max_it_fixpoint, tol, c0)
             fp_iterations.append(ii_fp)
             #print("ii fixpoint", ii_fp)
             
@@ -62,7 +62,7 @@ def adapted_crank_nicolson(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th
 
                 energy_diff = energies[-1] - curr_energy
                 
-                energies.append(curr_energy)
+                energies.extend(energies_fixpoint)
                 _time = time_vector[-1] + dt
                 time_vector.append(_time)
 
@@ -75,6 +75,7 @@ def adapted_crank_nicolson(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th
                 
             else:
                 dt = dt / 4
+                print("reduced dt to", dt)
                 if dt < 1e-12:
                     print("exit.")
                     raise RuntimeError("Time step too small. Exiting.")
@@ -86,8 +87,8 @@ def adapted_crank_nicolson(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th
     except KeyboardInterrupt:
         print("Exit.")
 
-
     pbar.close()
+    print("ii total", ii_updated)
     plt.ioff()
 
     if DATA_LOG:

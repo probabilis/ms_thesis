@@ -81,7 +81,14 @@ Magnetic Image mapping:
 
 ### Open:
 
+- Run power law for long estimator on bigger grid
+- Multiple runs = different patterns
+- ReRun asymptotic energy / check for high gamma
+- Run data00
+
+
 - Standardize plotting schematic + LaTex Font integration (still open: axis + latex font)
+- ReRun all plots for thesis
 
 
 

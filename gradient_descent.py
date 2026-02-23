@@ -12,7 +12,7 @@ from params import labyrinth_data_params, gd_sim_params, get_DataParameters, get
 # ---------------------------------------------------------------  
 
 def gradient_descent(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamma, epsilon, c0, alpha, num_iters, LAPLACE_SPECTRAL = True, STOP_BY_TOL = True, ENERGY_STOP_TOL = 1e-12):
-    print("----------------Gradient Descent Optimizer----------------")
+    
     print("LaPlace Spectral Calculation: ", LAPLACE_SPECTRAL)
     x, k, modk, modk2 = define_spaces(gridsize, N)
 

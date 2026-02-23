@@ -10,7 +10,7 @@ from env_utils import PATHS, print_bars, get_args, plotting_style, plotting_sche
 # ---------------------------------------------------------------
 
 def gradient_descent_proximal(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamma, epsilon, tau, c0, num_iters, prox_newton_iters, tol_newton, STOP_BY_TOL = True, ENERGY_STOP_TOL = 1e-12):
-    print("----------------Prox.Gradient Descent Optimizer----------------")
+    
     x, k, modk, modk2 = define_spaces(gridsize, N)
 
     sigma_k = fourier_multiplier(th * modk).to(dtype_real).to(device)

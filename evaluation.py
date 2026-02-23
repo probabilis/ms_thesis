@@ -16,16 +16,23 @@ from read import read_csv
 
 def grad_g_with_data(u, M_k, N, _lambda, u_exp):
     """Gradient of smooth part = spectral linear term + quadratic data term."""
-    #Fu = torch.fft.fft2(u) / (N**2)
-    Fu = torch.fft.fft2(u, norm='ortho')
-    grad_lin = torch.fft.ifft2(M_k * Fu, norm='ortho').real #* (N**2)
+    
+    LAPLACE_SPECTRAL = True
+    if LAPLACE_SPECTRAL:
+        Fu = torch.fft.fft2(u, norm='ortho')
+        grad_lin = torch.fft.ifft2(M_k * Fu, norm='ortho').real
+    else:
+        from pattern_formation import grad_fd
+        grad_lin = None #grad_fd()
+
     grad_data = _lambda * (u - u_exp)
     return grad_lin + grad_data
 
-def energy_value_with_data(gamma, epsilon, N, u, th, modk, modk2, c0,
-                           _lambda, u_exp):
+
+
+def energy_value_with_data(gamma, epsilon, N, u, M_k, c0, _lambda, u_exp):
     """Total energy = labyrinth functional + L2 data fidelity."""
-    E_base = energy_value(gamma, epsilon, N, u, th, modk, modk2, c0)
+    E_base = energy_value(gamma, epsilon, N, u, M_k, c0)
     E_data = 0.5 * _lambda * torch.sum((u - u_exp)**2) / N**2
     return (E_base + E_data).item()
 
@@ -33,10 +40,6 @@ def energy_value_with_data(gamma, epsilon, N, u, th, modk, modk2, c0,
 
 # -----------------------------------------------------------
 # -----------------------------------------------------------
-
-
-
-
 
 # Nesterov PGD with experimental image data
 
@@ -51,8 +54,9 @@ def gradient_descent_nesterov_evaluation(
     # --- spaces ---
 
     x, k, modk, modk2 = define_spaces(gridsize, N)
+
     sigma_k = fourier_multiplier(th * modk).to(dtype_real).to(device)
-    M_k = sigma_k + gamma * epsilon * modk2
+    M_k = sigma_k + gamma * epsilon * modk2 * (2*torch.pi)**2
 
     # --- initialization ---
     u_prev = u0.clone()
@@ -63,7 +67,7 @@ def gradient_descent_nesterov_evaluation(
     u_exp = u_exp.to(device=device, dtype=dtype_real)
 
     # energy history starts at u0
-    energies = [energy_value_with_data(gamma, epsilon, N, u0, th, modk, modk2,c0, _lambda, u_exp)]
+    energies = [energy_value_with_data(gamma, epsilon, N, u0, M_k, c0, _lambda, u_exp)]
 
     # plotting
     if LIVE_PLOT:
@@ -73,6 +77,7 @@ def gradient_descent_nesterov_evaluation(
 
     try:
         for n in tqdm(range(1, num_iters+1), desc="Nesterov GD for Data"):
+
             # 1) Nesterov extrapolation
             t_curr = 0.5 * (1.0 + (1.0 + 4.0 * t_prev * t_prev)**0.5)
             beta = (t_prev - 1.0) / t_curr
@@ -83,8 +88,7 @@ def gradient_descent_nesterov_evaluation(
             v = y - tau * ggrad
 
             # 3) backward step (proximal operator for double well only)
-            u_next = prox_h(v, tau, gamma, epsilon, c0,
-                            prox_newton_iters, tol_newton)
+            u_next = prox_h(v, tau, gamma, epsilon, c0, prox_newton_iters, tol_newton)
 
             # 4) update
             u_prev = u_curr
@@ -92,7 +96,7 @@ def gradient_descent_nesterov_evaluation(
             t_prev = t_curr
 
             # 5) energy
-            E = energy_value_with_data(gamma, epsilon, N, u_curr,th, modk, modk2, c0, _lambda, u_exp)
+            E = energy_value_with_data(gamma, epsilon, N, u_curr, M_k, c0, _lambda, u_exp)
             energy_diff = energies[-1] - E
             energies.append(E)
 
@@ -145,10 +149,10 @@ if __name__ == "__main__":
     # ---------------------------------------------------------------
 
     num_iters = 1000
-    ENERGY_STOP_TOL = 1e-10
+    ENERGY_STOP_TOL = 1e-12
 
-    exp_data_params = replace(exp_data_params, gamma = 0.0012) 
-    ngd_sim_params = replace(ngd_sim_params, num_iters = num_iters)
+    exp_data_params = replace(exp_data_params, gamma = 0.01) 
+    ngd_sim_params = replace(ngd_sim_params, num_iters = num_iters, tau = 0.001) # smaller tau because of image
 
     gridsize, N, th, epsilon, gamma = get_DataParameters(exp_data_params)
     u0 = initialize_u0_random(N, REAL=True)
@@ -164,7 +168,7 @@ if __name__ == "__main__":
 
     # ---------------------------------------------------------------
 
-    u, energies = gradient_descent_nesterov_evaluation(u0, u_exp, _lambda, LIVE_PLOT, DATA_LOG, OUTPUT_PATH,**asdict(exp_data_params),**asdict(ngd_sim_params), STOP_BY_TOL=True, ENERGY_STOP_TOL=ENERGY_STOP_TOL)
+    u, energies = gradient_descent_nesterov_evaluation(u0, u_exp, _lambda, LIVE_PLOT, DATA_LOG, OUTPUT_PATH,**asdict(exp_data_params),**asdict(ngd_sim_params), STOP_BY_TOL=False, ENERGY_STOP_TOL=ENERGY_STOP_TOL)
 
     fig, axs = plt.subplots(1,2) #, figsize = (8,8)
     axs[0].imshow(u.cpu().numpy(), cmap='gray',origin="lower", extent=(0,1,0,1))

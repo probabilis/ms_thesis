@@ -153,9 +153,9 @@ def different_image_lambdas_and_gammas(exp_data_params, ngd_sim_params, SIMULATE
     DATA_LOG = True
     args = parse_args()
 
-    ENERGY_STOP_TOL = 1e-8
-
+    ENERGY_STOP_TOL = 1e-12
     num_iters = 5_000
+    ngd_sim_params = replace(ngd_sim_params, num_iters = num_iters, tau = 0.001) # smaller tau because of image
 
     # ---------------------------------------------------------------
 
@@ -177,7 +177,7 @@ def different_image_lambdas_and_gammas(exp_data_params, ngd_sim_params, SIMULATE
     OUTPUT_PATH = PATHS.BASE_EXPDATA / dataset / "opt" / recording 
     Path(OUTPUT_PATH).mkdir(parents=True, exist_ok=True)
 
-    u_exp = read_csv(INPUT_FILE_PATH, "standardize", PLOT = False)
+    u_exp = read_csv(INPUT_FILE_PATH, PLOT = False)
 
     if u_exp.shape[0] != u_exp.shape[1]:
         raise ValueError("Experimental data should be quadratic (NxN tensor).")
@@ -192,10 +192,10 @@ def different_image_lambdas_and_gammas(exp_data_params, ngd_sim_params, SIMULATE
     print_bars()
     print(exp_data_params)
     print(ngd_sim_params)
-    print(f"STOP_BY_TOL = {STOP_BY_TOL}")
+    print(f"ENERGY_STOP_TOL = {ENERGY_STOP_TOL}")
     print_bars()
 
-    _lambda_ls = [0.001, 0.01]
+    _lambda_ls = [0.001, 0.01, 0.1]
 
     print(f"Learning Rate Lambda := {_lambda_ls}")
     print_bars()

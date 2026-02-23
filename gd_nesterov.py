@@ -14,21 +14,21 @@ from pattern_formation import fourier_multiplier, energy_value, energy_value_fd,
 # ---------------------------------------------------------------
 
 
-def gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamma, epsilon, tau, c0, num_iters, prox_newton_iters, tol_newton, LAPLACE_SPECTRAL = True, STOP_BY_TOL = True, ENERGY_STOP_TOL = 1e-10):
+def gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamma, epsilon, tau, c0, num_iters, prox_newton_iters, tol_newton, LAPLACE_SPECTRAL = True, STOP_BY_TOL = True, ENERGY_STOP_TOL = 1e-10, PBC = True):
     # Nesterov proximal gradient with adaptive restart
-    print("----------------Nesterov Gradient Descent Optimizer----------------")
+    
     x, k, modk, modk2 = define_spaces(gridsize, N)
     
     print("LaPlace Spectral Calculation: ", LAPLACE_SPECTRAL)
 
     sigma_k = fourier_multiplier(th * modk).to(dtype_real).to(device)
     M_k = sigma_k + gamma * epsilon * modk2 * (2*torch.pi)**2  # M_k for spectral calculation of LAPLACE
-    
 
     if LAPLACE_SPECTRAL:
         energies = [energy_value(gamma, epsilon, N, u0, M_k, c0)]
     else:        
-        energies = [energy_value_fd(u0, sigma_k, N, gamma, epsilon, c0)]
+        print("PBC: ", PBC)
+        energies = [energy_value_fd(u0, sigma_k, N, gamma, epsilon, c0, PBC)]
     
     # --- initialization ---
     u_prev = u0.clone()
@@ -53,7 +53,7 @@ def gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N,
             if LAPLACE_SPECTRAL:
                 ggrad = grad_g(y, M_k)
             else:
-                ggrad = grad_fd(y, sigma_k, N, gridsize, gamma, epsilon, c0, PBC = True)
+                ggrad = grad_fd(y, sigma_k, N, gridsize, gamma, epsilon, c0, PBC)
             v = y - tau * ggrad
 
             # 3) backward step (proximal operator through double well)
@@ -68,7 +68,7 @@ def gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N,
             if LAPLACE_SPECTRAL:
                 E = energy_value(gamma, epsilon, N, u_curr, M_k, c0)
             else:
-                E = energy_value_fd(u_curr, sigma_k, N, gamma, epsilon, c0, PBC = True)
+                E = energy_value_fd(u_curr, sigma_k, N, gamma, epsilon, c0, PBC)
             
             energy_diff = energies[-1] - E
             energies.append(E)
@@ -78,7 +78,7 @@ def gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N,
                 plt.pause(1)
 
             if STOP_BY_TOL and abs(energy_diff) < ENERGY_STOP_TOL:
-                print("dE[ii-1,ii]", energy_diff)
+                print("dE[ii-1, ii]", energy_diff)
                 break
 
     except KeyboardInterrupt:
@@ -90,6 +90,7 @@ def gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N,
         log_data(FOLDER_PATH, u_curr, energies, N, num_iters, gamma, epsilon)
         plotting_schematic(FOLDER_PATH, ax1, fig1, ax2, fig2, u_curr, energies, N, num_iters, gamma, epsilon, n)
 
+    print("Last energy", np.mean(energies[10:-1]))
     return u_curr, energies
 
 # ---------------------------------------------------------------

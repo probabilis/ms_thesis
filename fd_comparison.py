@@ -17,16 +17,19 @@ from params import sim_config
 
 if __name__ == "__main__":
 
+    SINGLE_COMPARISON = True
+    GAMMA_SWEEP = False
+
+
     plotting_style()
     FOLDER_PATH = PATHS.PATH_COMPARISON
 
     LIVE_PLOT = False
     DATA_LOG = False
-    
-    labyrinth_data_params = replace(labyrinth_data_params, N = 64, gamma = 0.08, epsilon = 0.01)
+    N = 64
+    labyrinth_data_params = replace(labyrinth_data_params, N = N, gamma = 0.002, epsilon = 0.01)
 
     #gridsize, N, th, epsilon, gamma = get_DataParameters(labyrinth_data_params)
-    N = 64
     u0 = initialize_u0_random(N, REAL = True)
     
     print_bars()
@@ -34,21 +37,65 @@ if __name__ == "__main__":
     print(ngd_sim_params)
     print_bars()
 
-    fig, axs = plt.subplots(2,2)
+    _types = ["Finite Differences | PBC", "Finite Differences | Von Neumann", "Spectral"]
+    PBC_ls = [True, False, True]
 
-    _types = ["Finite Differences", "Spectral"]
+    if SINGLE_COMPARISON:
+        fig, axs = plt.subplots(len(_types), 2)
+        for ii in range(0, len(_types)):
+            if ii == 2:
+                sim_config = replace(sim_config, LAPLACE_SPECTRAL = True)
+            
+            u, e = gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, **asdict(labyrinth_data_params),**asdict(ngd_sim_params), **asdict(sim_config), PBC = PBC_ls[ii])
+            
+            axs[ii, 0].imshow(u)
+            axs[ii, 0].set_title(f"LaPlace: {_types[ii]}")
 
-    for ii in range(0, 2):
-        if ii == 1:
-            sim_config = replace(sim_config, LAPLACE_SPECTRAL = True)
+            axs[ii, 1].plot(e)
+            axs[ii, 1].set_title("Energy evolution")
+
+        #plt.savefig(FOLDER_PATH / "laplace_evaluation_comparison.png", dpi = 300)
+        plt.show()
+
+
+    ngd_sim_params = replace(ngd_sim_params, tau = 0.01)
+
+    if GAMMA_SWEEP:
+        gamma_ls = [1/80, 1/100, 1/200, 1/500, 1/1000, 1/2000, 1/4000]
+
+        fig, axs = plt.subplots( len(gamma_ls), len(_types), figsize = (12,6) )
+
+        sim_config = replace(sim_config, LAPLACE_SPECTRAL = False)
+        u0 = initialize_u0_random(N, REAL = True)
+
+
+        for tt, type in enumerate(_types):
+            if tt == 2:
+                sim_config = replace(sim_config, LAPLACE_SPECTRAL = True)
+            
+            for ii, _gamma in enumerate(gamma_ls):
+                labyrinth_data_params = replace(labyrinth_data_params, gamma = _gamma)
+                u, e = gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, **asdict(labyrinth_data_params),**asdict(ngd_sim_params), **asdict(sim_config), PBC=PBC_ls[tt])
+
+                axs[ii, tt].imshow(u.cpu().numpy(), extent=(0,1,0,1))
+                
+                axs[ii, tt].set_box_aspect(1)
+                axs[ii, tt].axes.get_xaxis().set_ticks([])
+                axs[ii, tt].axes.get_yaxis().set_ticks([])
+
+                axs[ii, tt].set_title(f"$\\gamma = {_gamma:.5f}$")
+
         
-        u, e = gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, **asdict(labyrinth_data_params),**asdict(ngd_sim_params), **asdict(sim_config))
-        
-        axs[ii, 0].imshow(u)
-        axs[ii, 0].set_title(f"LaPlace: {_types[ii]}")
 
-        axs[ii, 1].plot(e)
-        axs[ii, 1].set_title("Energy evolution")
+        fig.canvas.draw()  # ensures positions are compute
 
-    plt.savefig(FOLDER_PATH / "laplace_evaluation_comparison_3.png", dpi = 300)
-    plt.show()
+        for kk in range(0, len(_types)):
+
+            bbox = axs[0, kk].get_position()
+            x_center = 0.5 * (bbox.x0 + bbox.x1)
+            y_top = bbox.y1 + 0.02
+            title = f"LaPlace: {_types[kk]}"
+            fig.text(x_center, y_top, title, ha="center", va = "bottom", fontsize=12)
+
+        plt.savefig(FOLDER_PATH / "laplace_evaluation_gamma_sweep.png", dpi = 300)
+        plt.show()

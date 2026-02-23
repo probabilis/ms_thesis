@@ -52,56 +52,65 @@ def double_well_prime(u, c0):
 
 # ------------------------------------------------------------------
 
-def laplacian(u, dx):
+import torch.nn.functional as F
+
+def laplacian2d(input_tensor):
+
+    # Ensure input is (Batch, Channel, Height, Width) -> needed for Conv2D API
+    if len(input_tensor.shape) == 2:
+        input_tensor = input_tensor.unsqueeze(0).unsqueeze(0)
+    elif len(input_tensor.shape) == 3:
+        input_tensor = input_tensor.unsqueeze(0)
+
+    # defined 3x3 kernel 
+    kernel = torch.tensor([[[[0.0, 1.0, 0.0],
+                             [1.0, -4.0, 1.0],
+                             [0.0, 1.0, 0.0]]]], dtype=input_tensor.dtype, device=input_tensor.device)
+
+    # {Link: Conv2d https://docs.pytorch.org/docs/stable/generated/torch.nn.modules.conv.Conv2d.html} [14]
+    return F.conv2d(input_tensor, kernel, padding=1) # (padding=1 keeps same size)
+
+
+def laplacian(u, dx, CONV = False):
     """
     with periodic BC because of the torch.roll() implementation (last element will be rolled over to first element)
     see.: https://docs.pytorch.org/docs/stable/generated/torch.roll.html
     """
-    lap_u = (torch.roll(u, 1, dims=0) + torch.roll(u, -1, dims=0) +
-             torch.roll(u, 1, dims=1) + torch.roll(u, -1, dims=1) - 4 * u) / dx**2
+    if not CONV:
+        lap_u = (torch.roll(u, 1, dims=0) + torch.roll(u, -1, dims=0) + torch.roll(u, 1, dims=1) + torch.roll(u, -1, dims=1) - 4 * u) / dx**2
+    else:
+        lap_u = laplacian2d(u).squeeze(0).squeeze(0)
+        #print(lap_u.shape)
+    
     return lap_u
 
 
 def laplacian_neumann(u: torch.Tensor, dx: float) -> torch.Tensor:
-    """
-    2D 5-point Laplacian with homogeneous Neumann BC (zero normal derivative).
-    Implemented by mirroring the boundary-adjacent values (reflect/replicate),
-    i.e., ghost cells satisfy u[-1]=u[1], u[N]=u[N-2], etc.
 
-    u: shape (H, W) (or any tensor where the last two dims are y,x if you adapt dims)
-    dx: grid spacing (assumed same in both directions)
-    """
+    # 5-point Laplacian with homogeneous Neumann BC (zero normal derivative).
+    # https://www.12000.org/my_notes/neumman_BC/Neumman_BC.htm
 
     lap = torch.zeros_like(u)
+    lap[1:-1, 1:-1] = u[2:, 1:-1] + u[:-2, 1:-1] + u[1:-1, 2:] + u[1:-1, :-2] - 4.0 * u[1:-1, 1:-1]
 
-    # interior
-    lap[1:-1, 1:-1] = (
-        u[2:, 1:-1] + u[:-2, 1:-1] + u[1:-1, 2:] + u[1:-1, :-2] - 4.0 * u[1:-1, 1:-1]
-    )
+    # edges are implemented via mirror across boundary / imaginary nodes represented by mirroring
+    # top row i=0:      u[-1] -> u[1]   
+    lap[0, 1:-1] = u[1, 1:-1] + u[1, 1:-1] + u[0, 2:] + u[0, :-2] - 4.0 * u[0, 1:-1]
 
-    # edges (Neumann: mirror across boundary)
-    # top row (i=0): u[-1] -> u[1]
-    lap[0, 1:-1] = (
-        u[1, 1:-1] + u[1, 1:-1] + u[0, 2:] + u[0, :-2] - 4.0 * u[0, 1:-1]
-    )
-    # bottom row (i=H-1): u[H] -> u[H-2]
-    lap[-1, 1:-1] = (
-        u[-2, 1:-1] + u[-2, 1:-1] + u[-1, 2:] + u[-1, :-2] - 4.0 * u[-1, 1:-1]
-    )
-    # left col (j=0): u[:, -1] -> u[:, 1]
-    lap[1:-1, 0] = (
-        u[2:, 0] + u[:-2, 0] + u[1:-1, 1] + u[1:-1, 1] - 4.0 * u[1:-1, 0]
-    )
-    # right col (j=W-1): u[:, W] -> u[:, W-2]
-    lap[1:-1, -1] = (
-        u[2:, -1] + u[:-2, -1] + u[1:-1, -2] + u[1:-1, -2] - 4.0 * u[1:-1, -1]
-    )
+    # bottom row i=H-1: u[H] -> u[H-2]
+    lap[-1, 1:-1] = u[-2, 1:-1] + u[-2, 1:-1] + u[-1, 2:] + u[-1, :-2] - 4.0 * u[-1, 1:-1]
+
+    # left col j=0: u[:, -1] -> u[:, 1]
+    lap[1:-1, 0] = u[2:, 0] + u[:-2, 0] + u[1:-1, 1] + u[1:-1, 1] - 4.0 * u[1:-1, 0]
+
+    # right col j=W-1: u[:, W] -> u[:, W-2]
+    lap[1:-1, -1] = u[2:, -1] + u[:-2, -1] + u[1:-1, -2] + u[1:-1, -2] - 4.0 * u[1:-1, -1]
 
     # corners (mirror in both directions)
-    lap[0, 0] = (u[1, 0] + u[1, 0] + u[0, 1] + u[0, 1] - 4.0 * u[0, 0])
-    lap[0, -1] = (u[1, -1] + u[1, -1] + u[0, -2] + u[0, -2] - 4.0 * u[0, -1])
-    lap[-1, 0] = (u[-2, 0] + u[-2, 0] + u[-1, 1] + u[-1, 1] - 4.0 * u[-1, 0])
-    lap[-1, -1] = (u[-2, -1] + u[-2, -1] + u[-1, -2] + u[-1, -2] - 4.0 * u[-1, -1])
+    lap[0, 0] = 2 * u[1, 0] + 2 * u[0, 1] - 4.0 * u[0, 0]
+    lap[0, -1] = 2 * u[1, -1] + 2 * u[0, -2] - 4.0 * u[0, -1]
+    lap[-1, 0] = 2 * u[-2, 0] + 2 * u[-1, 1] - 4.0 * u[-1, 0]
+    lap[-1, -1] = 2 * u[-2, -1] + 2 * u[-1, -2] - 4.0 * u[-1, -1]
 
     return lap / (dx ** 2)
 
@@ -188,85 +197,97 @@ def grad_g(u, M_k):
 
 # ------------------------------------------------------------------
 
-def grad_fd(u, sigma_k, N, gridsize, gamma, epsilon, c0, PBC = True):
+def grad_fd(u, sigma_k, N, gridsize, gamma, epsilon, c0, PBC = True, DW_TERM = False):
     """
     Gradient of Energy functional with Finite Difference method
     """
-    PBC = True
     # Local FD gradient (–γ ε Δu)
     if PBC:
         lap = laplacian(u, gridsize/N)
     else:
         lap = laplacian_neumann(u, gridsize/N)
-    grad_loc = -(gamma * epsilon) * lap
+    grad_loc = - (gamma * epsilon) * lap
 
     # Nonlocal gradient (σ_k * Fu)
     Fu = torch.fft.fft2(u, norm='ortho')
     grad_nl = torch.fft.ifft2(sigma_k * Fu, norm='ortho').real
 
-    # Double-well gradient ((γ/ε) W′(u))
-    grad_dw = (gamma / epsilon) * double_well_prime(u, c0)
+    grad_dw = 0
+    if DW_TERM:
+        # Double-well gradient ((γ/ε) W′(u))
+        grad_dw = (gamma / epsilon) * double_well_prime(u, c0)
 
     return grad_loc + grad_nl + grad_dw
 
 # ------------------------------------------------------------------
 
-def grad_neumann_centered(u: torch.Tensor, dx: float):
+def grad_fd_neumann_centered(u: torch.Tensor, dx: float):
+    # gradient with open boundary (for von neumann)
+
     uy = torch.zeros_like(u)
     ux = torch.zeros_like(u)
 
-    # centered interior (more stable than )
-    uy[1:-1, :] = (u[2:, :] - u[:-2, :]) / (2*dx)
+    uy[1:-1, :] = (u[2:, :] - u[:-2, :]) / (2*dx) # 2*dx spacing here
     ux[:, 1:-1] = (u[:, 2:] - u[:, :-2]) / (2*dx)
 
-    # one-sided near boundary (then enforce Neumann normal=0)
-    uy[0, :]  = 0.0
-    uy[-1, :] = 0.0
-    ux[:, 0]  = 0.0
-    ux[:, -1] = 0.0
+    # one-sided near boundary (Neumann normal is 0)
+    neuman_normal = 0.0
+    uy[0, :]  = neuman_normal
+    uy[-1, :] = neuman_normal
+    ux[:, 0]  = neuman_normal
+    ux[:, -1] = neuman_normal
+    return ux, uy
 
-    return uy, ux
+
+def grad_fd_pbc(u: torch.Tensor, dx : float):
+    uy = torch.zeros_like(u)
+    ux = torch.zeros_like(u)
+    
+    ux = ( u - torch.roll(u, 1, 0) ) / dx
+    uy = ( u - torch.roll(u, 1, 1) ) / dx
+    return ux, uy
 
 
 def energy_value_fd(u, sigma_k, N, gamma, epsilon, c0, PBC = True):
     """
-    Energy functional with finite difference
+    Energy functional with finite differences
+    E = LaPlace + DW + FM
     """
+
+    dx = 1/N
     if PBC: # Periodic boundary condition
-        ux = u - torch.roll(u, 1, 0)
-        uy = u - torch.roll(u, 1, 1)
-    
-    else:
-        uy, ux = grad_neumann_centered(u, 1/N)
+        ux, uy = grad_fd_pbc(u, dx)
+        print("dux",ux.shape)
+    else:   # Von Neumann BC
+        ux, uy = grad_fd_neumann_centered(u, dx)
 
     # local gradient energy
-    E_loc = 0.5 * (gamma * epsilon) * torch.sum(ux*ux + uy*uy) / (N**2)
+    E_GRAD = 0.5 * (gamma * epsilon) * torch.sum(ux*ux + uy*uy) / (N**2)    
 
     # nonlocal Fourier energy
     ftu = torch.fft.fft2(u) / (N**2)
-    E_nl = 0.5 * torch.sum(sigma_k * torch.abs(ftu)**2)
+    E_FM = 0.5 * torch.sum(sigma_k * torch.abs(ftu)**2)
 
     # double-well energy
     W = double_well_potential(u, c0)
-    E_dw = (gamma / epsilon) * torch.sum(W) / N**2
+    E_DW = (gamma / epsilon) * torch.sum(W) / N**2
 
-    return (E_loc + E_nl + E_dw).item()
+    return (E_GRAD + E_DW + E_FM).item()
 
 # ------------------------------------------------------------------
 
 def energy_value(gamma, epsilon, N, u, M_k, c0):
     """
-    E = DW + LaPlace + FM
-    spectral variant
+    E = LaPlace + DW + FM (spectral variant)
     """
 
     W = double_well_potential(u, c0)
     ftu = torch.fft.fft2(u) / N**2
     
-    energy = (gamma / epsilon) * torch.sum(W) / N**2
-    energy += 0.5 * torch.sum( M_k * torch.abs(ftu)**2 )
+    E_DW = (gamma / epsilon) * torch.sum(W) / N**2
+    E_LPFM = 0.5 * torch.sum( M_k * torch.abs(ftu)**2 )
 
-    return energy.item()
+    return (E_LPFM + E_DW).item()
 
 # ------------------------------------------------------------------
 
@@ -339,13 +360,12 @@ def fixpoint(U_0, L_eps, dt, N, epsilon, gamma, Nmax, tol, c0):
 
     CT = torch.fft.ifft2( G_m / G_p * torch.fft.fft2(U_0)).real
 
-
-    U_n = U_0.clone()
-    
+    U_n = U_0.clone()    
     error = 10.0
     ii = 0
     conv = False
-    
+
+    energies_fixpoint = []
 
     if DEBUG:
         print('max L:', torch.max(L_eps).item())
@@ -368,9 +388,12 @@ def fixpoint(U_0, L_eps, dt, N, epsilon, gamma, Nmax, tol, c0):
         U_n = U_np1
         ii += 1
 
+        curr_energy = energy_value(gamma, epsilon, N, U_n, L_eps, c0)
+        energies_fixpoint.append(curr_energy)
+
     if error < tol:
         conv = True
 
-    return ii, U_n, error, conv
+    return ii, U_n, error, conv, energies_fixpoint
 
 # ------------------------------------------------------------------

@@ -9,12 +9,30 @@ import json
 import matplotlib.pyplot as plt
 import pandas as pd
 
-
-
 def wall_mask_from_labels(L):
-    # L: bool (H,W)
+    # L: bool (H,W) / either for positive u or negative u
+    # returns boolean matrix W
+
+    """
+    same implementation functionality as: 
+
+    H, W = L.shape
+    # check each cell against its left neighbor
+    for i in range(H):
+        for j in range(1, W):
+            if L[i, j] != L[i, j - 1]:
+                W_mask[i, j] = True
+
+    # check each cell against its top neighbor
+    for i in range(1, H):
+        for j in range(W):
+            if L[i, j] != L[i - 1, j]:
+                W_mask[i, j] = True
+    """
+
     W = torch.zeros_like(L, dtype=torch.bool)
-    W[:, 1:] |= (L[:, 1:] != L[:, :-1])
+    W[:, 1:] |= (L[:, 1:] != L[:, :-1]) # 
+
     W[1:, :] |= (L[1:, :] != L[:-1, :])
     return W
 
@@ -31,17 +49,29 @@ def quality_scores(u_exp, u_opt, blur_sigma=1.0):
     """
     https://www.wikiwand.com/en/articles/Linear_discriminant_analysis
     """
-    I1 = u_exp[L]
-    I0 = u_exp[~L]
-    mu1, mu0 = I1.mean(), I0.mean()
+    u_pos = u_exp[L] # mask for positive values
+    u_neg = u_exp[~L] # mask for negative values
 
-    v1 = I1.var(unbiased=True) if I1.numel() > 1 else torch.tensor(0., device=u_exp.device)
-    v0 = I0.var(unbiased=True) if I0.numel() > 1 else torch.tensor(0., device=u_exp.device)
 
-    fisher_J = (mu1 - mu0).pow(2) / (v1 + v0 + 1e-12)
-    
+    mu_pos, mu_neg = u_pos.mean(), u_neg.mean()
+
+    #torch.tensor.numel() returns the total number of elements of tensor
+    var_pos = u_pos.var(unbiased=True) if u_pos.numel() > 1 else torch.tensor(0., device=u_exp.device)
+    var_neg = u_neg.var(unbiased=True) if u_neg.numel() > 1 else torch.tensor(0., device=u_exp.device)
+
+    try:
+        fisher_J = (mu_pos - mu_neg).pow(2) / (var_pos + var_neg)   
+    except ValueError:
+        fisher_J = 0
+
     # boundary calculation
     W = wall_mask_from_labels(L)
+    PLOT = False
+    if PLOT:
+        plt.figure()
+        plt.imshow(W.float(), origin="lower")
+        plt.show()
+    
     perimeter = W.float().sum()
 
     return float(fisher_J), float(perimeter), W.float()
@@ -56,7 +86,7 @@ if __name__ == "__main__":
     PLOT_ENERGY_CONVERGENCE_COMPARISON = False
 
     dataset = "data_00"
-    recording = "003"
+    recording = "004"
 
     INPUT_PATH = PATHS.BASE_EXPDATA
 
@@ -70,7 +100,7 @@ if __name__ == "__main__":
         params_file = json.load(_file)
 
     gamma_ls = params_file[recording]
-    _lambda_ls = [0.001, 0.01]
+    _lambda_ls = [0.001, 0.01, 0.1]
     print("Gamma's: ", gamma_ls)
     print("Lambda's: ", _lambda_ls)
     num_iters = 5000
@@ -78,7 +108,7 @@ if __name__ == "__main__":
     gridsize, N, th, epsilon, gamma = get_DataParameters(exp_data_params)
 
     OUTPUT_PATH = PATHS.BASE_EXPDATA / dataset / "opt" / recording
-    u_exp = read_csv(INPUT_PATH / f"{dataset}/csv/mcd_slice_{recording}.csv", "standardize")
+    u_exp = read_csv(INPUT_PATH / f"{dataset}/csv/mcd_slice_{recording}.csv", PLOT = True)
 
     records = []
 
@@ -109,6 +139,8 @@ if __name__ == "__main__":
 
             if jj == 1:
                 jj = 1 + jj
+            elif jj == 2:
+                jj = 2 + jj
             
             axs[ii, jj+0].imshow(torch.where(torch.abs(u_sim) < THRESHOLD, 10, u_sim), origin="lower", extent=(0,1,0,1))
             axs[ii, jj+0].set_box_aspect(1)
@@ -151,14 +183,14 @@ if __name__ == "__main__":
 
     cut = df["perimeter"].quantile(0.6)
     df_filt = df[df["perimeter"] <= cut].copy()
-
+    print(df)
     print("Best parameter constellation: ")
     best = df_filt.sort_values(["fisherJ", "perimeter"], ascending = [False, True])
     print(best)
     print(best.index)
 
     fig.suptitle("Fisher discriminant $S(u)$ and Perimeter $P(u)$")
-
+    plt.savefig(OUTPUT_PATH / f"recording={recording}_postprocessing_overview.png", dpi = 300)
     plt.show()
 
 
