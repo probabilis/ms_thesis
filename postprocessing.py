@@ -118,7 +118,7 @@ if __name__ == "__main__":
 
     # ---------------------------------------------------------------
 
-    fig, axs = plt.subplots( len(gamma_ls), 2 * len(_lambda_ls), figsize = (18,16) )
+    fig, axs = plt.subplots( len(gamma_ls), 2 * len(_lambda_ls), figsize = (18,18) )
 
     for ii, gamma in enumerate(gamma_ls):
         for jj, _lambda in enumerate(_lambda_ls):
@@ -136,34 +136,28 @@ if __name__ == "__main__":
                 "perimeter": float(perimeter)
             }
             records.append(rec)
-
-            if jj == 1:
-                jj = 1 + jj
-            elif jj == 2:
-                jj = 2 + jj
             
-            axs[ii, jj+0].imshow(torch.where(torch.abs(u_sim) < THRESHOLD, 10, u_sim), origin="lower", extent=(0,1,0,1))
-            axs[ii, jj+0].set_box_aspect(1)
-            axs[ii, jj+0].axes.get_xaxis().set_ticks([])
-            axs[ii, jj+0].axes.get_yaxis().set_ticks([])
+            # plot W instead of u_sim? 
+            axs[ii, 2*jj].imshow(torch.where(torch.abs(u_sim) < THRESHOLD, 10, u_sim), origin="lower", extent=(0,1,0,1))
+            axs[ii, 2*jj].set_box_aspect(1)
+            axs[ii, 2*jj].axes.get_xaxis().set_ticks([])
+            axs[ii, 2*jj].axes.get_yaxis().set_ticks([])
+            axs[ii, 2*jj].set_title(f"$P$ = {perimeter:.2f} | $S$ = {fisherJ:.3f}", fontsize = 8)
 
-            axs[ii, jj].set_title(f"$P$ = {perimeter:.2f} | $S$ = {fisherJ:.3f}", fontsize = 8)
 
-            axs[ii, jj+1].hist(u_sim.ravel(), bins=256, density = True)
-            axs[ii, jj+1].set_xlabel("$u_{ij}$")
+            axs[ii, 2*jj+1].hist(u_sim.ravel(), bins=256, density = True)
+            axs[ii, 2*jj+1].set_xlabel("$u_{ij}$")
             #axs[ii, 1].set_ylabel("norm. sample distribution $p(u_{ij})$")
-            axs[ii, jj+1].set_ylabel("$p(u_{ij})$")
-            axs[ii, jj+1].grid(color = "gray")
+            axs[ii, 2*jj+1].set_ylabel("$p(u_{ij})$")
+            axs[ii, 2*jj+1].grid(color = "gray")
 
-            axs[ii, jj+1].set_xlim(-1.5, +1.5)
+            axs[ii, 2*jj+1].set_xlim(-1.5, +1.5)
             
     
     fig.canvas.draw()  # ensures positions are compute
 
     for kk, _lambda in enumerate(_lambda_ls):
-        if kk == 1:
-            kk = 2 + kk
-        bbox = axs[0, kk].get_position()
+        bbox = axs[0, 2*kk].get_position()
         x_center = 0.5 * (bbox.x0 + bbox.x1)
         y_top = bbox.y1 + 0.02
         title = f"$\\lambda = {_lambda}$"
@@ -183,7 +177,7 @@ if __name__ == "__main__":
 
     cut = df["perimeter"].quantile(0.6)
     df_filt = df[df["perimeter"] <= cut].copy()
-    print(df)
+    #print(df)
     print("Best parameter constellation: ")
     best = df_filt.sort_values(["fisherJ", "perimeter"], ascending = [False, True])
     print(best)

@@ -162,10 +162,8 @@ def different_image_lambdas_and_gammas(exp_data_params, ngd_sim_params, SIMULATE
     dataset = args.dataset
     recording = args.recording
 
-    # INPUT PATHs
     INPUT_PATH = PATHS.BASE_EXPDATA
-
-    INPUT_FILE_PATH = PATHS.BASE_EXPDATA / f"{dataset}/csv/mcd_slice_{recording}.csv"
+    INPUT_FILE_PATH = INPUT_PATH / f"{dataset}/csv/mcd_slice_{recording}.csv"
 
     # ---------------------------------------------------------------
 
@@ -183,8 +181,6 @@ def different_image_lambdas_and_gammas(exp_data_params, ngd_sim_params, SIMULATE
         raise ValueError("Experimental data should be quadratic (NxN tensor).")
 
     # ---------------------------------------------------------------
-
-    ngd_sim_params = replace(ngd_sim_params, num_iters = num_iters)
 
     gridsize, N, th, epsilon, gamma = get_DataParameters(exp_data_params)
     u0 = initialize_u0_random(N, REAL=True)

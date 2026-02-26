@@ -245,6 +245,7 @@ def grad_fd_pbc(u: torch.Tensor, dx : float):
     
     ux = ( u - torch.roll(u, 1, 0) ) / dx
     uy = ( u - torch.roll(u, 1, 1) ) / dx
+    print("dux",ux.shape)
     return ux, uy
 
 
@@ -257,7 +258,6 @@ def energy_value_fd(u, sigma_k, N, gamma, epsilon, c0, PBC = True):
     dx = 1/N
     if PBC: # Periodic boundary condition
         ux, uy = grad_fd_pbc(u, dx)
-        print("dux",ux.shape)
     else:   # Von Neumann BC
         ux, uy = grad_fd_neumann_centered(u, dx)
 

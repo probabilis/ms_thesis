@@ -14,7 +14,7 @@ from pattern_formation import fourier_multiplier, energy_value, energy_value_fd,
 # ---------------------------------------------------------------
 
 
-def gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamma, epsilon, tau, c0, num_iters, prox_newton_iters, tol_newton, LAPLACE_SPECTRAL = True, STOP_BY_TOL = True, ENERGY_STOP_TOL = 1e-10, PBC = True):
+def gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamma, epsilon, tau, c0, num_iters, prox_newton_iters, tol_newton, LAPLACE_SPECTRAL = False, STOP_BY_TOL = True, ENERGY_STOP_TOL = 1e-10, PBC = True):
     # Nesterov proximal gradient with adaptive restart
     
     x, k, modk, modk2 = define_spaces(gridsize, N)

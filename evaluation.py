@@ -14,16 +14,13 @@ from env_utils import PATHS, print_bars, get_args, plotting_style, plotting_sche
 from read import read_csv
 
 
+# -----------------------------------------------------------
+# Spectral evaluation of LaPlace
+
 def grad_g_with_data(u, M_k, N, _lambda, u_exp):
     """Gradient of smooth part = spectral linear term + quadratic data term."""
-    
-    LAPLACE_SPECTRAL = True
-    if LAPLACE_SPECTRAL:
-        Fu = torch.fft.fft2(u, norm='ortho')
-        grad_lin = torch.fft.ifft2(M_k * Fu, norm='ortho').real
-    else:
-        from pattern_formation import grad_fd
-        grad_lin = None #grad_fd()
+    Fu = torch.fft.fft2(u, norm='ortho')
+    grad_lin = torch.fft.ifft2(M_k * Fu, norm='ortho').real
 
     grad_data = _lambda * (u - u_exp)
     return grad_lin + grad_data
@@ -36,6 +33,25 @@ def energy_value_with_data(gamma, epsilon, N, u, M_k, c0, _lambda, u_exp):
     E_data = 0.5 * _lambda * torch.sum((u - u_exp)**2) / N**2
     return (E_base + E_data).item()
 
+
+# -----------------------------------------------------------
+# FD evaluation of LaPlace
+
+from pattern_formation import energy_value_fd, grad_fd
+
+def energy_value_fd_with_data(gamma, epsilon, N, u, sigma_k, c0, _lambda, u_exp, PBC = True):
+    """Total energy = labyrinth functional + L2 data fidelity."""
+    E_base = energy_value_fd(u, sigma_k, N, gamma, epsilon, c0, PBC)
+    E_data = 0.5 * _lambda * torch.sum((u - u_exp)**2) / N**2
+    return (E_base + E_data).item()
+
+
+def grad_fd_with_data(u, sigma_k, N, gridsize, gamma, epsilon, c0, _lambda, u_exp, PBC):
+
+    grad_lin = grad_fd(u, sigma_k, N, gridsize, gamma, epsilon, c0, PBC)
+    grad_data = _lambda * (u - u_exp)
+
+    return grad_lin + grad_data
 
 
 # -----------------------------------------------------------
@@ -50,6 +66,9 @@ def gradient_descent_nesterov_evaluation(
     Nesterov (FISTA-like) proximal gradient with adaptive restart,
     augmented by a quadratic data term (λ/2)||u - u_exp||^2.
     """
+
+    LAPLACE_SPECTRAL = False
+    PBC = False
 
     # --- spaces ---
 
@@ -66,8 +85,12 @@ def gradient_descent_nesterov_evaluation(
     # match dtype/device for experimental data
     u_exp = u_exp.to(device=device, dtype=dtype_real)
 
+
     # energy history starts at u0
-    energies = [energy_value_with_data(gamma, epsilon, N, u0, M_k, c0, _lambda, u_exp)]
+    if LAPLACE_SPECTRAL:
+        energies = [energy_value_with_data(gamma, epsilon, N, u0, M_k, c0, _lambda, u_exp)]
+    else:
+        energies = [energy_value_fd_with_data(gamma, epsilon, N, u0, sigma_k, c0, _lambda, u_exp, PBC)]
 
     # plotting
     if LIVE_PLOT:
@@ -84,7 +107,11 @@ def gradient_descent_nesterov_evaluation(
             y = u_curr + beta * (u_curr - u_prev)
 
             # 2) forward step (gradient of smooth part)
-            ggrad = grad_g_with_data(y, M_k, N, _lambda, u_exp)
+            if LAPLACE_SPECTRAL:
+                ggrad = grad_g_with_data(y, M_k, N, _lambda, u_exp)
+            else:
+                ggrad = grad_fd_with_data(y, sigma_k, N, gridsize, gamma, epsilon, c0, _lambda, u_exp, PBC)
+            
             v = y - tau * ggrad
 
             # 3) backward step (proximal operator for double well only)
@@ -96,7 +123,11 @@ def gradient_descent_nesterov_evaluation(
             t_prev = t_curr
 
             # 5) energy
-            E = energy_value_with_data(gamma, epsilon, N, u_curr, M_k, c0, _lambda, u_exp)
+            if LAPLACE_SPECTRAL:
+                E = energy_value_with_data(gamma, epsilon, N, u_curr, M_k, c0, _lambda, u_exp)
+            else:
+                E = energy_value_fd_with_data(gamma, epsilon, N, u_curr, sigma_k, c0, _lambda, u_exp, PBC)
+            
             energy_diff = energies[-1] - E
             energies.append(E)
 
@@ -148,10 +179,10 @@ if __name__ == "__main__":
 
     # ---------------------------------------------------------------
 
-    num_iters = 1000
+    num_iters = 5000
     ENERGY_STOP_TOL = 1e-12
 
-    exp_data_params = replace(exp_data_params, gamma = 0.01) 
+    exp_data_params = replace(exp_data_params, gamma = 0.0001) 
     ngd_sim_params = replace(ngd_sim_params, num_iters = num_iters, tau = 0.001) # smaller tau because of image
 
     gridsize, N, th, epsilon, gamma = get_DataParameters(exp_data_params)

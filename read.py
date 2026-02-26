@@ -219,8 +219,8 @@ def read_csv(FILE_PATH, PLOT = False, deltaN = 180):
 
                 p = norm.pdf(x, mu, std)
                 axs[ii, 1].plot(x, p, 'k', linewidth=2)
-                axs[ii, 1].vlines(mu, ymin, ymax, color = "cornflowerblue", linewidth = 3, linestyle = "--", label = f"$\\mu = ${mu:.3f}")
-                axs[ii, 1].vlines(mu + std, ymin, ymax/2, color = "salmon", linewidth = 3, linestyle = "--", label = f"$\\sigma = ${std:.3f}")
+                axs[ii, 1].vlines(mu, ymin, ymax, color = "cornflowerblue", linewidth = 3, linestyle = "--", label = f"$\\mu = ${abs(mu):.1f}")
+                axs[ii, 1].vlines(mu + std, ymin, ymax/2, color = "salmon", linewidth = 3, linestyle = "--", label = f"$\\sigma = ${std:.1f}")
                 axs[ii, 1].vlines(mu - std, ymin, ymax/2, color = "salmon", linewidth = 3, linestyle = "--")
                 axs[ii, 1].legend(loc = "lower right")
 
@@ -232,7 +232,7 @@ def read_csv(FILE_PATH, PLOT = False, deltaN = 180):
             axs[ii, 1].set_yticks(np.round(np.linspace(ymin, ymax, 4), 2))
 
         fig.tight_layout()
-        #fig.savefig(_FILE_PATH.with_suffix(".png"), dpi = 300)
+        fig.savefig(FILE_PATH.with_suffix(".png"), dpi = 300)
         plt.show()
         
     return torch.from_numpy(img_standardize.astype(np.float32))

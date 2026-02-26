@@ -41,7 +41,7 @@ if __name__ == "__main__":
     PBC_ls = [True, False, True]
 
     if SINGLE_COMPARISON:
-        fig, axs = plt.subplots(len(_types), 2)
+        fig, axs = plt.subplots(len(_types), 2, figsize = (12,12))
         for ii in range(0, len(_types)):
             if ii == 2:
                 sim_config = replace(sim_config, LAPLACE_SPECTRAL = True)
@@ -51,10 +51,19 @@ if __name__ == "__main__":
             axs[ii, 0].imshow(u)
             axs[ii, 0].set_title(f"LaPlace: {_types[ii]}")
 
-            axs[ii, 1].plot(e)
+            axs[ii, 1].loglog(e)
+            axs[ii, 1].hlines(e[-1],1,len(e), label = f"E[-1] = {e[-1]:.3f}", color = "black", linestyle = ":")
             axs[ii, 1].set_title("Energy evolution")
 
-        #plt.savefig(FOLDER_PATH / "laplace_evaluation_comparison.png", dpi = 300)
+
+            axs[ii, 0].set_box_aspect(1)
+            axs[ii, 0].axes.get_xaxis().set_ticks([])
+            axs[ii, 0].axes.get_yaxis().set_ticks([])
+
+            axs[ii, 1].grid(color = "gray")
+            axs[ii, 1].legend()
+            
+        plt.savefig(FOLDER_PATH / "laplace_evaluation_comparison.png", dpi = 300)
         plt.show()
 
 
