@@ -184,10 +184,10 @@ def read_csv(FILE_PATH, PLOT = False, deltaN = 180):
 
     # 2) crop ROI
     N = img.shape[0]
-    print("Initial image size:", N)
+    #print("Initial image size:", N)
     roi = img[deltaN:N-deltaN, deltaN:N-deltaN]
     roi_size = roi.shape[0]
-    print("Reduce image size:", roi_size)
+    #print("Reduce image size:", roi_size)
 
     # 3) standardization 
     #m, s = np.median(roi), np.median(np.abs(roi - np.median(roi))) + 1e-6

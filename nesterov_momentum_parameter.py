@@ -22,7 +22,7 @@ for k in range(1, 100):
     k_ls.append(k)
 
 
-#plt.plot(k_ls, lambda_ls)
+# plt.plot(k_ls, lambda_ls)
 plt.plot(k_ls, beta_ls, label = "$\\beta_k(\\lambda_k)$")
 plt.plot(k_ls, beta_pock_ls, label = "$\\beta_k = \\frac{k - 1}{k + 2}$")
 plt.legend()

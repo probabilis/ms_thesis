@@ -73,7 +73,7 @@ def gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N,
             energy_diff = energies[-1] - E
             energies.append(E)
 
-            if (n % 1000) == 0 and LIVE_PLOT:
+            if (n % 100) == 0 and LIVE_PLOT:
                 plotting_schematic(FOLDER_PATH, ax1, fig1, ax2, fig2, u_curr, energies, N, num_iters, gamma, epsilon, n)
                 plt.pause(1)
 
@@ -104,15 +104,16 @@ if __name__ == "__main__":
     LIVE_PLOT = args.live_plot
     DATA_LOG = args.data_log
 
-    labyrinth_data_params = replace(labyrinth_data_params, N = 64)
-
+    labyrinth_data_params = replace(labyrinth_data_params, N = 664, gamma = 0.0003, th = 1.0) # 0.00022
     gridsize, N, th, epsilon, gamma = get_DataParameters(labyrinth_data_params)
-    N = 64
     u0 = initialize_u0_random(N, REAL = True)
-    
+    tau = 0.01
+
+    ngd_sim_params = replace(ngd_sim_params, tau = tau)
+
     print_bars()
     print(labyrinth_data_params)
     print(ngd_sim_params)
     print_bars()
 
-    gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, **asdict(labyrinth_data_params),**asdict(ngd_sim_params) )
+    gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, **asdict(labyrinth_data_params),**asdict(ngd_sim_params), LAPLACE_SPECTRAL=True, ENERGY_STOP_TOL=1e-12)

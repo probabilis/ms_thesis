@@ -85,6 +85,24 @@ def log_data(folder_path, u, energies, N, num_iters, gamma, epsilon, _lambda = N
 
 
 
+def log_data_history(folder_path, u, history, N, num_iters, gamma, epsilon, _lambda = None):
+
+    file_name = get_filename(N, num_iters, gamma, epsilon, _lambda)
+
+    df_energies = pd.DataFrame(history)
+    u_np = u.numpy()
+    df_u = pd.DataFrame(u_np)
+
+    _path_1 = folder_path / f"{file_name}_energy_data.csv"
+    _path_2 = folder_path / f"{file_name}_pattern_data.csv"
+    
+    df_energies.to_csv(_path_1, index = False)   
+    df_u.to_csv(_path_2, index = False, header = False)
+
+    print(f"Sucessfully saved data: \n {_path_1} \n {_path_2}.")
+
+
+
 def read_sim_dat_from_csv(folder_path, N, num_iters, gamma, epsilon, _lambda = None):
 
     file_name = get_filename(N, num_iters, gamma, epsilon, _lambda)
@@ -92,11 +110,16 @@ def read_sim_dat_from_csv(folder_path, N, num_iters, gamma, epsilon, _lambda = N
     _path_1 = folder_path / f"{file_name}_energy_data.csv"
     _path_2 = folder_path / f"{file_name}_pattern_data.csv"
 
-    df_energies = pd.read_csv(_path_1, header = None)
+    df_energies = pd.read_csv(_path_1) # header = None
     df_u = pd.read_csv(_path_2, header = None)
 
     return df_energies, df_u
 
+
+
+# PLOTTING related
+
+N_ticks = 4 
 
 
 def plotting_schematic(folder_path, ax1, fig1, ax2, fig2, u, energies, N, num_iters, gamma, epsilon, ii):

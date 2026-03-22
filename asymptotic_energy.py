@@ -26,7 +26,8 @@ if __name__ == "__main__":
     DATA_LOG = False
 
     gridsize, N, th, epsilon, gamma = get_DataParameters(labyrinth_data_params)
-    N = 64
+
+    #labyrinth_data_params = replace(labyrinth_data_params, gamma = gamma)
 
     ngd_sim_params = replace(ngd_sim_params, num_iters = 5_000)
     
@@ -42,12 +43,20 @@ if __name__ == "__main__":
     #gamma_ls = np.array([1/500, 1/800, 1/1000, 1/1500, 1/2000, 1/3000, 1/4000, 1/5000, 1/8000, 1/12000])
     energies_ls = []
 
+    from lipschitz import evaluate_lipschitz_constant
+
     for ii in range(N_est):
         for gamma in gamma_ls:
-            print(gamma)
+            print_bars()
+            print("Gamma: ", gamma)
+
+            eta = evaluate_lipschitz_constant(gamma, epsilon, N, gridsize)
+            print("eta", eta)
+
             u0 = initialize_u0_random(N, REAL = True)
 
-            labyrinth_data_params = replace(labyrinth_data_params, N = 64, gamma = gamma)
+            labyrinth_data_params = replace(labyrinth_data_params, gamma = gamma)
+            ngd_sim_params = replace(ngd_sim_params, tau = eta)
             
             u, energies = gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, **asdict(labyrinth_data_params),**asdict(ngd_sim_params), **asdict(sim_config))
             
@@ -59,6 +68,9 @@ if __name__ == "__main__":
 
     plt.loglog(gamma_ls, energies_ls, label = "exp.")
     plt.loglog(gamma_ls, algebraic_scaling(gamma_ls), linestyle = "--", label = "theor.")
+    plt.xlabel("$\\gamma$ / 1")
+    plt.ylabel("energy $E[ii-1]$ / 1")
+
 
     plt.grid(color = "gray")
     plt.legend(loc = "lower right")

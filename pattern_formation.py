@@ -245,11 +245,10 @@ def grad_fd_pbc(u: torch.Tensor, dx : float):
     
     ux = ( u - torch.roll(u, 1, 0) ) / dx
     uy = ( u - torch.roll(u, 1, 1) ) / dx
-    print("dux",ux.shape)
     return ux, uy
 
 
-def energy_value_fd(u, sigma_k, N, gamma, epsilon, c0, PBC = True):
+def energy_value_fd(u, sigma_k, N, gamma, epsilon, c0, PBC = True, RETURN_SEPERATE = False):
     """
     Energy functional with finite differences
     E = LaPlace + DW + FM
@@ -272,7 +271,10 @@ def energy_value_fd(u, sigma_k, N, gamma, epsilon, c0, PBC = True):
     W = double_well_potential(u, c0)
     E_DW = (gamma / epsilon) * torch.sum(W) / N**2
 
-    return (E_GRAD + E_DW + E_FM).item()
+    if RETURN_SEPERATE:
+        return E_GRAD, E_DW, E_FM
+    else:
+        return (E_GRAD + E_DW + E_FM).item()
 
 # ------------------------------------------------------------------
 

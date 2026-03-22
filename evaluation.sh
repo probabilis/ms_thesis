@@ -5,8 +5,8 @@ echo "Running GD Nesterov optimization method for experimental image data for $D
 
 #comment: data_0x for dataset nr + looping over different files in.
 
-for i in {1..5}; do
-  python evaluation_add.py \
+for i in {1..7}; do
+  python evaluation_sweep.py \
     --dataset $DATASET \
     --recording "00${i}"
 done

@@ -85,8 +85,8 @@ if __name__ == "__main__":
 
     PLOT_ENERGY_CONVERGENCE_COMPARISON = False
 
-    dataset = "data_00"
-    recording = "004"
+    dataset = "data_01"
+    recording = "007"   
 
     INPUT_PATH = PATHS.BASE_EXPDATA
 
@@ -177,11 +177,13 @@ if __name__ == "__main__":
 
     cut = df["perimeter"].quantile(0.6)
     df_filt = df[df["perimeter"] <= cut].copy()
-    #print(df)
+    print(df)
     print("Best parameter constellation: ")
     best = df_filt.sort_values(["fisherJ", "perimeter"], ascending = [False, True])
     print(best)
     print(best.index)
+
+    df.to_csv(OUTPUT_PATH / f"ranking.csv")
 
     fig.suptitle("Fisher discriminant $S(u)$ and Perimeter $P(u)$")
     plt.savefig(OUTPUT_PATH / f"recording={recording}_postprocessing_overview.png", dpi = 300)

@@ -11,9 +11,10 @@ from params import labyrinth_data_params, gd_sim_params, get_DataParameters, get
 
 # ---------------------------------------------------------------  
 
-def gradient_descent(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamma, epsilon, c0, alpha, num_iters, LAPLACE_SPECTRAL = True, STOP_BY_TOL = True, ENERGY_STOP_TOL = 1e-12):
-    
+def gradient_descent(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamma, epsilon, c0, alpha, num_iters, LAPLACE_SPECTRAL = False, STOP_BY_TOL = True, ENERGY_STOP_TOL = 1e-12, PBC = True):
+
     print("LaPlace Spectral Calculation: ", LAPLACE_SPECTRAL)
+
     x, k, modk, modk2 = define_spaces(gridsize, N)
 
     sigma_k = fourier_multiplier(th * modk).to(dtype_real).to(device)
@@ -24,7 +25,8 @@ def gradient_descent(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamm
     if LAPLACE_SPECTRAL:
         energies = [energy_value(gamma, epsilon, N, u0, M_k, c0)]
     else:
-        energies = [energy_value_fd(u0, sigma_k, N, gamma, epsilon, c0)]
+        energies = [energy_value_fd(u0, sigma_k, N, gamma, epsilon, c0, PBC)]
+        print("PBC: ", PBC)
 
     if LIVE_PLOT or DATA_LOG:
         fig1, ax1 = plt.subplots(figsize = (14,12))
@@ -42,7 +44,7 @@ def gradient_descent(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamm
             # total gradient
             grad_E = grad_lin + grad_double
         else:
-            grad_E = grad_fd(u, sigma_k, N, gridsize, gamma, epsilon, c0)
+            grad_E = grad_fd(u, sigma_k, N, gridsize, gamma, epsilon, c0, PBC, DW_TERM=True)
 
         # GD update
         u -= alpha * grad_E
@@ -51,7 +53,7 @@ def gradient_descent(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamm
         if LAPLACE_SPECTRAL:
             curr_energy = energy_value(gamma, epsilon, N, u, M_k, c0)
         else:
-            curr_energy = energy_value_fd(u, sigma_k, N, gamma, epsilon, c0)
+            curr_energy = energy_value_fd(u, sigma_k, N, gamma, epsilon, c0, PBC)
 
         energy_diff = energies[-1] - curr_energy
         energies.append(curr_energy)

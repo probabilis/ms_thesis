@@ -10,7 +10,7 @@ from gd_proximal import prox_h
 from params import exp_data_params, get_DataParameters, get_SimulationParamters
 from params import pgd_sim_params as ngd_sim_params
 
-from env_utils import PATHS, print_bars, get_args, plotting_style, plotting_schematic_eval, log_data
+from env_utils import PATHS, print_bars, get_args, plotting_style, plotting_schematic_eval, log_data, log_data_history
 from read import read_csv
 
 
@@ -41,9 +41,10 @@ from pattern_formation import energy_value_fd, grad_fd
 
 def energy_value_fd_with_data(gamma, epsilon, N, u, sigma_k, c0, _lambda, u_exp, PBC = True):
     """Total energy = labyrinth functional + L2 data fidelity."""
-    E_base = energy_value_fd(u, sigma_k, N, gamma, epsilon, c0, PBC)
+    E_GRAD, E_DW, E_FM = energy_value_fd(u, sigma_k, N, gamma, epsilon, c0, PBC, RETURN_SEPERATE=True)
     E_data = 0.5 * _lambda * torch.sum((u - u_exp)**2) / N**2
-    return (E_base + E_data).item()
+    
+    return E_GRAD.item(), E_DW.item(), E_FM.item(), E_data.item()
 
 
 def grad_fd_with_data(u, sigma_k, N, gridsize, gamma, epsilon, c0, _lambda, u_exp, PBC):
@@ -90,7 +91,15 @@ def gradient_descent_nesterov_evaluation(
     if LAPLACE_SPECTRAL:
         energies = [energy_value_with_data(gamma, epsilon, N, u0, M_k, c0, _lambda, u_exp)]
     else:
-        energies = [energy_value_fd_with_data(gamma, epsilon, N, u0, sigma_k, c0, _lambda, u_exp, PBC)]
+        E_ex, E_demag, E_dw, E_data = energy_value_fd_with_data(gamma, epsilon, N, u0, sigma_k, c0, _lambda, u_exp, PBC)
+
+    E0 = E_ex + E_demag + E_dw + E_data
+    energies = [E0]
+    energies_ex = [E_ex]
+    energies_demag = [E_demag]
+    energies_dw = [E_dw]
+    energies_data = [E_data]
+
 
     # plotting
     if LIVE_PLOT:
@@ -126,10 +135,18 @@ def gradient_descent_nesterov_evaluation(
             if LAPLACE_SPECTRAL:
                 E = energy_value_with_data(gamma, epsilon, N, u_curr, M_k, c0, _lambda, u_exp)
             else:
-                E = energy_value_fd_with_data(gamma, epsilon, N, u_curr, sigma_k, c0, _lambda, u_exp, PBC)
+                E_ex, E_demag, E_dw, E_data = energy_value_fd_with_data(gamma, epsilon, N, u_curr, sigma_k, c0, _lambda, u_exp, PBC)
             
+
+            E = E_ex + E_demag + E_dw + E_data
             energy_diff = energies[-1] - E
+            
             energies.append(E)
+            energies_ex.append(E_ex)
+            energies_demag.append(E_demag)
+            energies_dw.append(E_dw)
+            energies_data.append(E_data)
+
 
             if (n % 100) == 0 and LIVE_PLOT:
                 plotting_schematic_eval(OUTPUT_PATH, ax1, fig1, ax2, fig2, u_curr, energies, N, num_iters, gamma, epsilon, _lambda, n)
@@ -146,10 +163,20 @@ def gradient_descent_nesterov_evaluation(
 
     plt.ioff()
 
-    if DATA_LOG:
-        log_data(OUTPUT_PATH, u_curr, energies, N, num_iters, gamma, epsilon, _lambda)
 
-    return u_curr, energies
+
+    history = {
+        "E_total": energies,
+        "E_ex": energies_ex,
+        "E_demag": energies_demag,
+        "E_dw": energies_dw,
+        "E_data": energies_data,
+    }
+
+    if DATA_LOG:
+        log_data_history(OUTPUT_PATH, u_curr, history, N, num_iters, gamma, epsilon, _lambda)
+
+    return u_curr, history 
 
 # ---------------------------------------------------------------
 
@@ -166,7 +193,7 @@ if __name__ == "__main__":
 
     # ---------------------------------------------------------------
 
-    dataset = "data_00"
+    dataset = "data_01"
     recording = "001"
 
     INPUT_FILE_PATH = PATHS.BASE_EXPDATA / f"{dataset}/csv/mcd_slice_{recording}.csv"
@@ -182,7 +209,7 @@ if __name__ == "__main__":
     num_iters = 5000
     ENERGY_STOP_TOL = 1e-12
 
-    exp_data_params = replace(exp_data_params, gamma = 0.0001) 
+    exp_data_params = replace(exp_data_params, gamma = 0.001) 
     ngd_sim_params = replace(ngd_sim_params, num_iters = num_iters, tau = 0.001) # smaller tau because of image
 
     gridsize, N, th, epsilon, gamma = get_DataParameters(exp_data_params)
@@ -199,16 +226,41 @@ if __name__ == "__main__":
 
     # ---------------------------------------------------------------
 
-    u, energies = gradient_descent_nesterov_evaluation(u0, u_exp, _lambda, LIVE_PLOT, DATA_LOG, OUTPUT_PATH,**asdict(exp_data_params),**asdict(ngd_sim_params), STOP_BY_TOL=False, ENERGY_STOP_TOL=ENERGY_STOP_TOL)
+    u, history = gradient_descent_nesterov_evaluation(u0, u_exp, _lambda, LIVE_PLOT, DATA_LOG, OUTPUT_PATH,**asdict(exp_data_params),**asdict(ngd_sim_params), STOP_BY_TOL=False, ENERGY_STOP_TOL=ENERGY_STOP_TOL)
 
-    fig, axs = plt.subplots(1,2) #, figsize = (8,8)
-    axs[0].imshow(u.cpu().numpy(), cmap='gray',origin="lower", extent=(0,1,0,1))
-    axs[0].set_box_aspect(1)
-    axs[0].set_title(f"$\\gamma = {gamma}, \\lambda = {_lambda}$")
+    fig, axs = plt.subplots(2,2 , figsize = (12,8) )
 
-    axs[1].plot(np.arange(0,len(energies), 1), energies)
-    axs[1].set_box_aspect(1)
-    axs[1].set_title(f"$\\Delta E < {ENERGY_STOP_TOL}$")
+
+
+    axs[0, 0].imshow(u_exp.cpu().numpy(), cmap = 'gray',origin="lower", extent = (0,1,0,1) )
+    axs[0, 1].imshow(u.cpu().numpy(), cmap='gray',origin="lower", extent=(0,1,0,1) )    
+    axs[0, 0].set_box_aspect(1)
+    axs[0, 1].set_box_aspect(1)
+    
+    #axs[0].set_title(f"$\\gamma = {gamma}, \\lambda = {_lambda}$")
+
+    axs[1, 0].loglog(history["E_total"], label = "$E_{total}$")
+
+    axs[1, 0].loglog(history["E_ex"], label="$E_{ex}$")
+    axs[1, 0].loglog(history["E_demag"], label="$E_{demag}$")
+    axs[1, 0].loglog(history["E_dw"], label="$E_{an}$")
+    axs[1, 0].loglog(history["E_data"], label="$E_{data}$")    
+    axs[1, 0].legend()
+
+    material = "Ta/CoFeB/MgO"
+
+    txt = (
+        f"Material: {material}\n"
+        f"gamma     = {gamma}\n"
+        f"epsilon   = {epsilon}\n"
+        f"lambda    = {_lambda}\n"
+        f"iters     = {len(history['E_total'])-1}\n"
+        f"E_final   = {history['E_total'][-1]:.3e}"
+    )
+    axs[1, 1].axis("off")
+    axs[1, 1].text(0.0, 1.0, txt, va="top", ha="left", fontsize=11)
+
+    #axs[1].set_title(f"$\\Delta E < {ENERGY_STOP_TOL}$")
     #axs[1].set_yscale('log')
 
     fig.tight_layout()

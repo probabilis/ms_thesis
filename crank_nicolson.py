@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import time
 from pathlib import Path
 import pandas as pd
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from scipy.ndimage import gaussian_filter
 
 from pattern_formation import define_spaces, fourier_multiplier, energy_value, fixpoint, initialize_u0_random
@@ -108,6 +108,7 @@ if __name__ == "__main__":
     LIVE_PLOT = args.live_plot
     DATA_LOG = args.data_log
 
+    labyrinth_data_params = replace(labyrinth_data_params, N = 100, gamma = 0.0004, th = 0.01)
 
     gridsize, N, th, epsilon, gamma = get_DataParameters(labyrinth_data_params)
     u0 = initialize_u0_random(N)

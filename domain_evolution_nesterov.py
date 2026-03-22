@@ -20,25 +20,27 @@ def gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N,
     # Nesterov proximal gradient with adaptive restart
 
     x, k, modk, modk2 = define_spaces(gridsize, N)
+    print(k)
+    exit(0)
 
     # --- spaces ---
     if LAPLACE_SPECTRAL is None:
         LAPLACE_SPECTRAL = True
     
-    LAPLACE_SPECTRAL = True
+    LAPLACE_SPECTRAL = False
     print("LaPlace Spectral Calculation: ", LAPLACE_SPECTRAL)
+
+    sigma_k = fourier_multiplier(th * modk).to(dtype_real).to(device)
+        # M_k for spectral calculation of LAPLACE
     
     if LAPLACE_SPECTRAL:
-        energies = [energy_value(gamma, epsilon, N, u0, th, modk, modk2, c0)]
-        sigma_k = fourier_multiplier(th * modk).to(dtype_real).to(device)
+        M_k = sigma_k + gamma * epsilon * modk2 * (2*torch.pi)**2
+        energies = [energy_value(gamma, epsilon, N, u0, M_k, c0)]
         
     else:        
-        sigma_k = fourier_multiplier(th * modk).to(dtype_real).to(device)
-        energies = [energy_value_fd(u0, sigma_k, N, gamma, epsilon, c0)]
-    
-
-    # M_k for spectral calculation of LAPLACE
-    M_k = sigma_k + gamma * epsilon * modk2 ** (2*torch.pi)**2
+        PBC = True
+        print("PBC", PBC)
+        energies = [energy_value_fd(u0, sigma_k, N, gamma, epsilon, c0, PBC)]
 
     # --- initialization ---
     u_prev = u0.clone()
@@ -47,12 +49,8 @@ def gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N,
 
     u_ls = []
 
-    PBC = False
-    print("PBC", PBC)
-
     # --- main loop ---
     try:
-
         for n in tqdm(range(1, num_iters+1), desc="Nesterov GD"):
             # 1) extrapolation
             t_curr = 0.5 * (1.0 + (1.0 + 4.0 * t_prev * t_prev)**0.5)
@@ -76,11 +74,14 @@ def gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N,
 
             # 5) energy evaluation
             if LAPLACE_SPECTRAL:
-                E = energy_value(gamma, epsilon, N, u_curr, th, modk, modk2, c0)
+                E = energy_value(gamma, epsilon, N, u_curr, M_k, c0)
             else:
                 E = energy_value_fd(u_curr, sigma_k, N, gamma, epsilon, c0, PBC)
             
             energy_diff = energies[-1] - E
+            if energy_diff is type(None):
+                raise ValueError
+            
             energies.append(E)
 
             if (n % 100) == 0 and LIVE_PLOT:
@@ -108,11 +109,12 @@ if __name__ == "__main__":
     LIVE_PLOT = True
     DATA_LOG = args.data_log
 
-    labyrinth_data_params = replace(labyrinth_data_params, N = 64, gamma = 0.002)
+    N = 200
+    labyrinth_data_params = replace(labyrinth_data_params, N = N, gamma = 0.0002)
     ngd_sim_params = replace(ngd_sim_params, num_iters = 2000)
 
     gridsize, N, th, epsilon, gamma = get_DataParameters(labyrinth_data_params)
-    N = 64
+
     u0 = initialize_u0_random(N, REAL = True)
     
     print_bars()
