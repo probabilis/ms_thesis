@@ -213,7 +213,7 @@ if __name__ == "__main__":
             u, energies = gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, **asdict(labyrinth_data_params), **asdict(ngd_sim_params), **asdict(sim_config))
             #u_hat = torch.fft.fftshift(torch.fft.fft2(u))
             
-            results = radial_wavelength_spectrum(u, gridsize/N, plot = PLOT)
+            results = radial_wavelength_spectrum(u, gridsize/N, plot = True)
             #print(results)
             
             print(f"Pattern frequency [cycles per unit length]: {results["k_peak"]}, wavelength [unit length]: {results["wavelength_peak"]}")

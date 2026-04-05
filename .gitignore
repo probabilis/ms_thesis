@@ -19,3 +19,5 @@ code_condette/random_start/
 *.pyc
 **/__pycache__/
 __pycache__
+oommf_tacofebmgo/**
+oommf/**

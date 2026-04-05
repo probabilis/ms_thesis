@@ -450,7 +450,7 @@ def plot_results(
         ax.axis("off")
 
     fig.suptitle(
-        f"MCD overview — Ef LCP: {dataset_lcp.ef:.2f}, Ef RCP: {dataset_rcp.ef:.2f}",
+        f"MCD overview — Ef LCP: {dataset_lcp.ef :.2f}, Ef RCP: {dataset_rcp.ef:.2f}",
         fontsize=12,
     )
     fig.tight_layout()

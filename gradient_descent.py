@@ -11,7 +11,7 @@ from params import labyrinth_data_params, gd_sim_params, get_DataParameters, get
 
 # ---------------------------------------------------------------  
 
-def gradient_descent(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamma, epsilon, c0, alpha, num_iters, LAPLACE_SPECTRAL = False, STOP_BY_TOL = True, ENERGY_STOP_TOL = 1e-12, PBC = True):
+def gradient_descent(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamma, epsilon, c0, alpha, num_iters, LAPLACE_SPECTRAL = False, STOP_BY_TOL = True, ENERGY_STOP_TOL = 1e-12, PBC = True, SAVE_U_HISTORY = False):
 
     print("LaPlace Spectral Calculation: ", LAPLACE_SPECTRAL)
 
@@ -25,13 +25,22 @@ def gradient_descent(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamm
     if LAPLACE_SPECTRAL:
         energies = [energy_value(gamma, epsilon, N, u0, M_k, c0)]
     else:
-        energies = [energy_value_fd(u0, sigma_k, N, gamma, epsilon, c0, PBC)]
         print("PBC: ", PBC)
+        E_ex, E_demag, E_dw = energy_value_fd(u0, sigma_k, N, gamma, epsilon, c0, PBC, RETURN_SEPERATE=True)
+        E0 = E_ex + E_demag + E_dw
+
+    energies = [E0]
+    energies_ex = [E_ex]
+    energies_demag = [E_demag]
+    energies_dw = [E_dw]
 
     if LIVE_PLOT or DATA_LOG:
         fig1, ax1 = plt.subplots(figsize = (14,12))
         fig2, ax2 = plt.subplots(figsize = (10,10))
         plt.ion()
+
+    if SAVE_U_HISTORY:
+        u_ls = [u0]
 
     for ii in tqdm(range(num_iters), desc="GD"):
         if LAPLACE_SPECTRAL:
@@ -48,17 +57,25 @@ def gradient_descent(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamm
 
         # GD update
         u -= alpha * grad_E
-        #print(u)
+
+        if SAVE_U_HISTORY and (ii % 100) == 0:
+            u_ls.append(u.clone())
 
         if LAPLACE_SPECTRAL:
-            curr_energy = energy_value(gamma, epsilon, N, u, M_k, c0)
+            E0 = energy_value(gamma, epsilon, N, u, M_k, c0)
         else:
-            curr_energy = energy_value_fd(u, sigma_k, N, gamma, epsilon, c0, PBC)
+            E_ex, E_demag, E_dw = energy_value_fd(u, sigma_k, N, gamma, epsilon, c0, PBC, RETURN_SEPERATE=True)
+            E0 = E_ex + E_demag + E_dw
 
-        energy_diff = energies[-1] - curr_energy
-        energies.append(curr_energy)
+        energy_diff = energies[-1] - E0
+        energies.append(E0)
 
-        if LIVE_PLOT and (ii % 1_000) == 0:
+        energies_ex.append(E_ex)
+        energies_demag.append(E_demag)
+        energies_dw.append(E_dw)
+
+
+        if LIVE_PLOT and (ii % 100) == 0:
             plotting_schematic(FOLDER_PATH, ax1, fig1, ax2, fig2, u, energies, N, num_iters, gamma, epsilon, ii)
             plt.pause(1)  
             
@@ -72,7 +89,18 @@ def gradient_descent(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamm
         log_data(FOLDER_PATH, u, energies, N, num_iters, gamma, epsilon)
         plotting_schematic(FOLDER_PATH, ax1, fig1, ax2, fig2, u, energies, N, num_iters, gamma, epsilon, ii)
 
-    return u, energies
+    history = {
+        "E_total": energies,
+        "E_ex": energies_ex,
+        "E_demag": energies_demag,
+        "E_dw": energies_dw,
+    }
+
+
+    if SAVE_U_HISTORY:
+        return u_ls, history
+    else:
+        return u, energies
 
 # ---------------------------------------------------------------
 
