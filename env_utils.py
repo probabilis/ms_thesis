@@ -26,14 +26,38 @@ class PATHS:
 
     PATH_EXAMPLES = _BASE / 'examples'
 
+    PATH_EVOLUTION = BASE_OUTPUT / 'evolution'
 
     
 
 # ---------------------------------------------------------------
 
 
-def plotting_style():
+def plotting_style(CHANGE_FONT_SIZES = True):
     plt.style.use('classic')
+
+
+    if CHANGE_FONT_SIZES:
+        # Set the default text font size
+        plt.rc('font', size=16)
+
+        # Set the axes title font size
+        plt.rc('axes', titlesize=16)
+
+        # Set the axes labels font size
+        plt.rc('axes', labelsize=16)
+
+        # Set the font size for x tick labels
+        plt.rc('xtick', labelsize=16)
+
+        # Set the font size for y tick labels
+        plt.rc('ytick', labelsize=16)
+
+        # Set the legend font size
+        plt.rc('legend', fontsize=18)
+
+        # Set the font size of the figure title
+        plt.rc('figure', titlesize=20)
 
 
 # ---------------------------------------------------------------

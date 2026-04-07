@@ -11,7 +11,7 @@ from params import labyrinth_data_params, gd_sim_params, get_DataParameters, get
 
 # ---------------------------------------------------------------  
 
-def gradient_descent(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamma, epsilon, c0, alpha, num_iters, LAPLACE_SPECTRAL = False, STOP_BY_TOL = True, ENERGY_STOP_TOL = 1e-12, PBC = True, SAVE_U_HISTORY = False):
+def gradient_descent(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamma, epsilon, c0, alpha, num_iters, LAPLACE_SPECTRAL = False, STOP_BY_TOL = True, ENERGY_STOP_TOL = 1e-12, PBC = True, SAVE_U_HISTORY = None):
 
     print("LaPlace Spectral Calculation: ", LAPLACE_SPECTRAL)
 
@@ -39,7 +39,7 @@ def gradient_descent(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamm
         fig2, ax2 = plt.subplots(figsize = (10,10))
         plt.ion()
 
-    if SAVE_U_HISTORY:
+    if SAVE_U_HISTORY is not None:
         u_ls = [u0]
 
     for ii in tqdm(range(num_iters), desc="GD"):
@@ -58,7 +58,7 @@ def gradient_descent(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamm
         # GD update
         u -= alpha * grad_E
 
-        if SAVE_U_HISTORY and (ii % 100) == 0:
+        if SAVE_U_HISTORY is not None and (ii % SAVE_U_HISTORY) == 0:
             u_ls.append(u.clone())
 
         if LAPLACE_SPECTRAL:
@@ -78,7 +78,7 @@ def gradient_descent(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamm
         if LIVE_PLOT and (ii % 100) == 0:
             plotting_schematic(FOLDER_PATH, ax1, fig1, ax2, fig2, u, energies, N, num_iters, gamma, epsilon, ii)
             plt.pause(1)  
-            
+
         if STOP_BY_TOL and abs(energy_diff) < ENERGY_STOP_TOL:
             print("dE[ii-1,ii]", abs(energy_diff) )
             break
@@ -97,7 +97,7 @@ def gradient_descent(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamm
     }
 
 
-    if SAVE_U_HISTORY:
+    if SAVE_U_HISTORY is not None:
         return u_ls, history
     else:
         return u, energies
