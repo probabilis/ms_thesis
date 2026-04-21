@@ -260,16 +260,16 @@ def energy_value_fd(u, sigma_k, N, gamma, epsilon, c0, PBC = True, RETURN_SEPERA
     else:   # Von Neumann BC
         ux, uy = grad_fd_neumann_centered(u, dx)
 
-    # local gradient energy
-    E_GRAD = 0.5 * (gamma * epsilon) * torch.sum(ux*ux + uy*uy) / (N**2)    
+    # local gradient energy 
+    E_GRAD = 0.5 * (gamma * epsilon) * torch.sum(ux*ux + uy*uy) / (N**2) # normalized
 
     # nonlocal Fourier energy
-    ftu = torch.fft.fft2(u) / (N**2)
+    ftu = torch.fft.fft2(u, norm = 'ortho') / (N**2) # normalized
     E_FM = 0.5 * torch.sum(sigma_k * torch.abs(ftu)**2)
 
     # double-well energy
     W = double_well_potential(u, c0)
-    E_DW = (gamma / epsilon) * torch.sum(W) / N**2
+    E_DW = (gamma / epsilon) * torch.sum(W) / N**2 # normalized
 
     if RETURN_SEPERATE:
         return E_GRAD, E_DW, E_FM
@@ -280,13 +280,14 @@ def energy_value_fd(u, sigma_k, N, gamma, epsilon, c0, PBC = True, RETURN_SEPERA
 
 def energy_value(gamma, epsilon, N, u, M_k, c0):
     """
-    E = LaPlace + DW + FM (spectral variant)
+    Energy functional with spectral variant
+    E = LaPlace + DW + FM 
     """
 
     W = double_well_potential(u, c0)
-    ftu = torch.fft.fft2(u) / N**2
+    ftu = torch.fft.fft2(u, norm = 'ortho') #/ N**2
     
-    E_DW = (gamma / epsilon) * torch.sum(W) / N**2
+    E_DW = (gamma / epsilon) * torch.sum(W) / N**2 
     E_LPFM = 0.5 * torch.sum( M_k * torch.abs(ftu)**2 )
 
     return (E_LPFM + E_DW).item()

@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from dataclasses import asdict, replace
 
 from pattern_formation import double_well_potential, fourier_multiplier,energy_value, dtype_real, device, initialize_u0_random, define_spaces
+from pattern_formation import energy_value_fd, grad_fd
 from gd_proximal import prox_h
 
 from params import exp_data_params, get_DataParameters, get_SimulationParamters
@@ -13,34 +14,14 @@ from params import pgd_sim_params as ngd_sim_params
 from env_utils import PATHS, print_bars, get_args, plotting_style, plotting_schematic_eval, log_data, log_data_history
 from read import read_csv
 
-
-# -----------------------------------------------------------
-# Spectral evaluation of LaPlace
-
-def grad_g_with_data(u, M_k, N, _lambda, u_exp):
-    """Gradient of smooth part = spectral linear term + quadratic data term."""
-    Fu = torch.fft.fft2(u, norm='ortho')
-    grad_lin = torch.fft.ifft2(M_k * Fu, norm='ortho').real
-
-    grad_data = _lambda * (u - u_exp)
-    return grad_lin + grad_data
-
-
-
-def energy_value_with_data(gamma, epsilon, N, u, M_k, c0, _lambda, u_exp):
-    """Total energy = labyrinth functional + L2 data fidelity."""
-    E_base = energy_value(gamma, epsilon, N, u, M_k, c0)
-    E_data = 0.5 * _lambda * torch.sum((u - u_exp)**2) / N**2
-    return (E_base + E_data).item()
+from spectrum_analysis import radial_wavelength_spectrum
 
 
 # -----------------------------------------------------------
 # FD evaluation of LaPlace
 
-from pattern_formation import energy_value_fd, grad_fd
-
 def energy_value_fd_with_data(gamma, epsilon, N, u, sigma_k, c0, _lambda, u_exp, PBC = True):
-    """Total energy = labyrinth functional + L2 data fidelity."""
+    """Total energy = functional + Mean Squared Error (L2) data loss term."""
     E_GRAD, E_DW, E_FM = energy_value_fd(u, sigma_k, N, gamma, epsilon, c0, PBC, RETURN_SEPERATE=True)
     E_data = 0.5 * _lambda * torch.sum((u - u_exp)**2) / N**2
     
@@ -54,8 +35,67 @@ def grad_fd_with_data(u, sigma_k, N, gridsize, gamma, epsilon, c0, _lambda, u_ex
 
     return grad_lin + grad_data
 
+# -----------------------------------------------------------
+# FD evaluation + wavevector fitting
+
+def energy_value_fd_with_data_and_kpeak(gamma, epsilon, N, u, sigma_k, c0, _lambda, u_exp, k_peak_sim, k_peak_exp, PBC = True):
+    """Total energy = labyrinth functional + L2 data fidelity."""
+    E_GRAD, E_DW, E_FM = energy_value_fd(u, sigma_k, N, gamma, epsilon, c0, PBC, RETURN_SEPERATE=True)
+    E_data = 0.5 * _lambda * ( torch.sum((u - u_exp)**2) / N**2 + (k_peak_sim - k_peak_exp)**2 )
+
+    return E_GRAD.item(), E_DW.item(), E_FM.item(), E_data.item()
+
+
+
+def grad_fd_with_data_and_kpeak(u, sigma_k, N, gridsize, gamma, epsilon, c0, _lambda, u_exp, k_peak_sim, k_peak_exp, PBC):
+
+    grad_lin = grad_fd(u, sigma_k, N, gridsize, gamma, epsilon, c0, PBC)
+    grad_data = _lambda * ( (u - u_exp) + (k_peak_sim - k_peak_exp) ) 
+
+    return grad_lin + grad_data
 
 # -----------------------------------------------------------
+
+
+def energy_value_fd_with_data_huber_loss(gamma, epsilon, N, u, sigma_k, c0, _lambda, u_exp, delta=2.0, PBC=True):
+    """Total energy = labyrinth functional + Huber data fidelity."""
+    E_GRAD, E_DW, E_FM = energy_value_fd(
+        u, sigma_k, N, gamma, epsilon, c0, PBC, RETURN_SEPERATE=True
+    )
+
+    r = u - u_exp
+    abs_r = torch.abs(r)
+
+    huber = torch.where(
+        abs_r <= delta,
+        0.5 * r**2,
+        delta * (abs_r - 0.5 * delta)
+    )
+
+    E_data = _lambda * torch.sum(huber) / N**2
+
+    return E_GRAD.item(), E_DW.item(), E_FM.item(), E_data.item()
+
+
+def grad_fd_with_data_huber_loss(u, sigma_k, N, gridsize, gamma, epsilon, c0, _lambda, u_exp, delta=2.0, PBC=True):
+    """Gradient of total energy = physical gradient + Huber data term."""
+    grad_lin = grad_fd(u, sigma_k, N, gridsize, gamma, epsilon, c0, PBC)
+
+    r = u - u_exp
+    abs_r = torch.abs(r)
+
+    grad_data = torch.where(
+        abs_r <= delta,
+        r,
+        delta * torch.sign(r)
+    )
+
+    grad_data = _lambda * grad_data # / N**2
+
+    return grad_lin + grad_data
+
+
+
 # -----------------------------------------------------------
 
 # Nesterov PGD with experimental image data
@@ -63,35 +103,40 @@ def grad_fd_with_data(u, sigma_k, N, gridsize, gamma, epsilon, c0, _lambda, u_ex
 def gradient_descent_nesterov_evaluation(
     u0, u_exp, _lambda, LIVE_PLOT, DATA_LOG, OUTPUT_PATH, gridsize, N, th, gamma, epsilon, tau, c0,
     num_iters, prox_newton_iters, tol_newton, STOP_BY_TOL = False, ENERGY_STOP_TOL = 1e-6):
-    """
-    Nesterov (FISTA-like) proximal gradient with adaptive restart,
-    augmented by a quadratic data term (λ/2)||u - u_exp||^2.
-    """
 
-    LAPLACE_SPECTRAL = False
+
+
     PBC = False
-
     # --- spaces ---
 
     x, k, modk, modk2 = define_spaces(gridsize, N)
 
     sigma_k = fourier_multiplier(th * modk).to(dtype_real).to(device)
-    M_k = sigma_k + gamma * epsilon * modk2 * (2*torch.pi)**2
 
     # --- initialization ---
     u_prev = u0.clone()
     u_curr = u0.clone()
     t_prev = 1.0
 
-    # match dtype/device for experimental data
     u_exp = u_exp.to(device=device, dtype=dtype_real)
+
+    loss_types = ["MSE", "MSE+k_peak", "HuberLoss"]
+
+    LOSS_TYPE = loss_types[1]
+
+    if LOSS_TYPE == "MSE+k_peak":
+        k_peak_exp = radial_wavelength_spectrum(u_exp, gridsize/N)["k_peak"]
+        k_peak_sim = radial_wavelength_spectrum(u0, gridsize/N)["k_peak"]
 
 
     # energy history starts at u0
-    if LAPLACE_SPECTRAL:
-        energies = [energy_value_with_data(gamma, epsilon, N, u0, M_k, c0, _lambda, u_exp)]
-    else:
+    if LOSS_TYPE == "MSE":
         E_ex, E_demag, E_dw, E_data = energy_value_fd_with_data(gamma, epsilon, N, u0, sigma_k, c0, _lambda, u_exp, PBC)
+    if LOSS_TYPE == "HuberLoss":
+        E_ex, E_demag, E_dw, E_data = energy_value_fd_with_data_huber_loss(gamma, epsilon, N, u0, sigma_k, c0, _lambda, u_exp, PBC = PBC)
+    if LOSS_TYPE == "MSE+k_peak":
+        E_ex, E_demag, E_dw, E_data = energy_value_fd_with_data_and_kpeak(gamma, epsilon, N, u0, sigma_k, c0, _lambda, u_exp, k_peak_sim, k_peak_exp, PBC)
+        
 
     E0 = E_ex + E_demag + E_dw + E_data
     energies = [E0]
@@ -101,7 +146,6 @@ def gradient_descent_nesterov_evaluation(
     energies_data = [E_data]
 
 
-    # plotting
     if LIVE_PLOT:
         plt.ion()
         fig1, ax1 = plt.subplots(1,1, figsize=(5,5))
@@ -115,12 +159,17 @@ def gradient_descent_nesterov_evaluation(
             beta = (t_prev - 1.0) / t_curr
             y = u_curr + beta * (u_curr - u_prev)
 
+            if LOSS_TYPE == "MSE+k_peak": 
+                k_peak_sim = radial_wavelength_spectrum(y, gridsize/N)["k_peak"]
+
             # 2) forward step (gradient of smooth part)
-            if LAPLACE_SPECTRAL:
-                ggrad = grad_g_with_data(y, M_k, N, _lambda, u_exp)
-            else:
+            if LOSS_TYPE == "MSE":
                 ggrad = grad_fd_with_data(y, sigma_k, N, gridsize, gamma, epsilon, c0, _lambda, u_exp, PBC)
-            
+            if LOSS_TYPE == "HuberLoss":
+                ggrad = grad_fd_with_data_huber_loss(y, sigma_k, N, gridsize, gamma, epsilon, c0, _lambda, u_exp, PBC = PBC)
+            if LOSS_TYPE == "MSE+k_peak":    
+                ggrad = grad_fd_with_data_and_kpeak(y, sigma_k, N, gridsize, gamma, epsilon, c0, _lambda, u_exp, k_peak_sim, k_peak_exp, PBC)
+
             v = y - tau * ggrad
 
             # 3) backward step (proximal operator for double well only)
@@ -130,13 +179,17 @@ def gradient_descent_nesterov_evaluation(
             u_prev = u_curr
             u_curr = u_next
             t_prev = t_curr
+        
+            if LOSS_TYPE == "MSE+k_peak": 
+                k_peak_sim = radial_wavelength_spectrum(u_curr, gridsize/N)["k_peak"]
 
             # 5) energy
-            if LAPLACE_SPECTRAL:
-                E = energy_value_with_data(gamma, epsilon, N, u_curr, M_k, c0, _lambda, u_exp)
-            else:
+            if LOSS_TYPE == "MSE":
                 E_ex, E_demag, E_dw, E_data = energy_value_fd_with_data(gamma, epsilon, N, u_curr, sigma_k, c0, _lambda, u_exp, PBC)
-            
+            if LOSS_TYPE == "HuberLoss":
+                E_ex, E_demag, E_dw, E_data = energy_value_fd_with_data_huber_loss(gamma, epsilon, N, u_curr, sigma_k, c0, _lambda, u_exp, PBC = PBC)
+            if LOSS_TYPE == "MSE+k_peak":    
+                E_ex, E_demag, E_dw, E_data = energy_value_fd_with_data_and_kpeak(gamma, epsilon, N, u_curr, sigma_k, c0, _lambda, u_exp, k_peak_sim, k_peak_exp, PBC)
 
             E = E_ex + E_demag + E_dw + E_data
             energy_diff = energies[-1] - E
@@ -209,7 +262,7 @@ if __name__ == "__main__":
     num_iters = 5000
     ENERGY_STOP_TOL = 1e-12
 
-    exp_data_params = replace(exp_data_params, gamma = 0.001) 
+    exp_data_params = replace(exp_data_params, gamma = 0.004) 
     ngd_sim_params = replace(ngd_sim_params, num_iters = num_iters, tau = 0.001) # smaller tau because of image
 
     gridsize, N, th, epsilon, gamma = get_DataParameters(exp_data_params)
@@ -226,7 +279,7 @@ if __name__ == "__main__":
 
     # ---------------------------------------------------------------
 
-    u, history = gradient_descent_nesterov_evaluation(u0, u_exp, _lambda, LIVE_PLOT, DATA_LOG, OUTPUT_PATH,**asdict(exp_data_params),**asdict(ngd_sim_params), STOP_BY_TOL=False, ENERGY_STOP_TOL=ENERGY_STOP_TOL)
+    u, history = gradient_descent_nesterov_evaluation(u0, u_exp, _lambda, LIVE_PLOT, DATA_LOG, OUTPUT_PATH,**asdict(exp_data_params),**asdict(ngd_sim_params), STOP_BY_TOL=True, ENERGY_STOP_TOL=ENERGY_STOP_TOL)
 
     fig, axs = plt.subplots(2,2 , figsize = (12,8) )
 

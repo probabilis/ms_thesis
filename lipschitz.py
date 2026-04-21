@@ -7,11 +7,7 @@ import matplotlib.pyplot as plt
 
 def evaluate_lipschitz_constant(gamma, eps, N, gridsize, th = 1.0, PLOT_DOUBLE_WELL = False, DEBUG = False):
 
-    if PLOT_DOUBLE_WELL:
-        x = torch.arange(-2, +2, 0.01)
-        y = double_well_potential(x, 9/32)
-        plt.plot(x, y)
-        plt.show()
+
 
     h = gridsize / N
     x, k, modk, modk2 = define_spaces(gridsize, N)
@@ -56,10 +52,18 @@ def evaluate_lipschitz_constant(gamma, eps, N, gridsize, th = 1.0, PLOT_DOUBLE_W
     return eta_safe
 
 if __name__ == "__main__":
-    
+    """
     N = 664
     gridsize = 1.0
     gamma = 0.005
     eps = 0.01
 
     evaluate_lipschitz_constant(gamma, eps, N, gridsize)
+    """
+
+    N = 200
+    gridsize = 1.0
+    gamma = 0.002
+    eps = 0.01
+
+    evaluate_lipschitz_constant(gamma, eps, N, gridsize, DEBUG=True)

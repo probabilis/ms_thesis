@@ -13,12 +13,11 @@ from params import labyrinth_data_params, get_DataParameters, get_SimulationPara
 from env_utils import PATHS, print_bars, get_args, plotting_style
 from pattern_formation import initialize_u0_random
 
+# ---------------------------------------------------------------
 
+def plot_pdf_heatmap(u_ls, energies, xlim=(-1.1, 1.1), n_x=200):
 
-
-def plot_pdf_flow(u_ls, energies, xlim=(-1.1, 1.1), n_x=200):
-
-    fig, axs = plt.subplots(2,1, figsize=(12, 10))
+    fig, axs = plt.subplots(2,1, figsize=(12, 10), sharex=True)
 
     x = np.linspace(xlim[0], xlim[1], n_x)
     pdfs = []
@@ -40,23 +39,27 @@ def plot_pdf_flow(u_ls, energies, xlim=(-1.1, 1.1), n_x=200):
         cmap = "berlin",
     )
     #plt.colorbar(im,ax=axs[0], label=r"$p_t(u)$")
-    axs[0].set_xlabel(r"$u$")
-    axs[0].set_ylabel("iterations $k$")
-    axs[0].set_title("PDF flow during GD optimization")
+    axs[0].set_ylabel(r"$u^{(ij)}_n$")
     
+    axs[0].set_title("PDF flow during GD optimization")
 
-    for energy in energies:
-        data = energies[energy]
-        axs[1].plot(np.arange(0, len(data), 1),data, label = f"${energy}$")
+    axs[1].set_ylabel("energy value $E[u_n(x,y)]$")
+    axs[1].plot(history["E_ex"], label="$E_{\\nabla}$")
+    axs[1].plot(history["E_demag"], label="$E_{\\mathcal{F}}$")
+    axs[1].plot(history["E_dw"], label="$E_{W}$")
+
+    axs[1].set_xlabel("iterator $n$")
 
     axs[1].set_yscale('log')
     axs[1].grid(color = "gray")
     axs[1].legend()
+    fig.tight_layout()
 
 
-
-def plot_pdf_waterfall(u_ls, step=20, offset=0.25, xlim=(-1.1, 1.1)):
+def plot_pdf_waterfall(u_ls, NR_OF_ACCUMULATED_ITERATIONS, step=20, offset=0.25, xlim=(-1.1, 1.1)):
     x = np.linspace(xlim[0], xlim[1], 300)
+
+    colors = plt.cm.berlin(np.linspace(0,1,len(u_ls))) #this gets the colormap as an array of colours
 
     plt.figure(figsize=(10, 12) )
 
@@ -66,15 +69,17 @@ def plot_pdf_waterfall(u_ls, step=20, offset=0.25, xlim=(-1.1, 1.1)):
         p = kde(x)
 
         y0 = k * offset
-        plt.plot(x, p + y0, lw=2, label=f"{k*step}", color = "black")
+        plt.plot(x, p + y0, lw=2, label=f"{k*NR_OF_ACCUMULATED_ITERATIONS}", color = colors[k])
         plt.fill_between(x, y0, p + y0, alpha=0.2, color = "gray")
 
+
     plt.grid(color = "gray")
-    plt.xlabel(r"$u_{ij}$")
-    plt.ylabel("shifted PDF $p(u)$ / time")
-    plt.title("probability density function PDF evolution")
-    #plt.legend(title="iterations $k$", bbox_to_anchor=(1.02, 1), loc="upper left")
+    plt.xlabel(r"$u^{(ij)}_n$")
+    plt.ylabel(f"normalized PDF $p(u_n)$ shifted by $\\Delta = {int(offset)}$ after each $n = {NR_OF_ACCUMULATED_ITERATIONS}$ iterations")
+    plt.title("probability density function PDF time evolution")
+    plt.legend(title="iterator $n$", bbox_to_anchor=(1.02, 1), loc="upper left")
     plt.xlim(*xlim)
+    plt.tight_layout()
 
 # ---------------------------------------------------------------
 
@@ -88,6 +93,7 @@ if __name__ == "__main__":
 
     LIVE_PLOT = False
     DATA_LOG = False
+    
 
     N = 200
     num_iters_max = 1000
@@ -107,21 +113,27 @@ if __name__ == "__main__":
     print(sim_config)
     print_bars()    
 
-    PDF_LINE_PLOT = False
+    SHOW_PLOT = False
+
+    PDF_LINE_PLOT = True
     PDF_HEATMAP_PLOT = True
+    SUMMARY = True
 
     if PDF_LINE_PLOT:
+        NR_OF_ACCUMULATED_ITERATIONS = 100
         u_ls, history = gradient_descent(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, 
                                         **asdict(labyrinth_data_params), 
                                         **asdict(gd_sim_params), 
                                         **asdict(sim_config), 
-                                        SAVE_U_HISTORY = 100 )
+                                        SAVE_U_HISTORY = NR_OF_ACCUMULATED_ITERATIONS)
 
-        plot_pdf_waterfall(u_ls, step=1, offset = 1.0)
+        plot_pdf_waterfall(u_ls, NR_OF_ACCUMULATED_ITERATIONS, step=1, offset = 1.0)
         
         plt.savefig(FOLDER_PATH / f"pdf_evolution_N={N}_num-iters={num_iters_max}_gamma={gamma}.png", dpi = 300)
-        plt.show()
-        plt.close()
+        
+        if SHOW_PLOT:
+            plt.show()
+            plt.close()
 
     if PDF_HEATMAP_PLOT:
         u_ls, history = gradient_descent(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, 
@@ -130,79 +142,88 @@ if __name__ == "__main__":
                                         **asdict(sim_config), 
                                         SAVE_U_HISTORY = 1)
         
-        plot_pdf_flow(u_ls, history)
+        plot_pdf_heatmap(u_ls, history)
         plt.savefig(FOLDER_PATH / f"pdf_evolution_heatmap_N={N}_num-iters={num_iters_max}_gamma={gamma}.png", dpi = 300)
-        plt.show()
-        plt.close()
-
-    exit(0)
-
-
-    u_ls, history = gradient_descent(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, **asdict(labyrinth_data_params),**asdict(gd_sim_params), **asdict(sim_config), SAVE_U_HISTORY=100)
-    
-    
-    fig, axs = plt.subplots( 5, 4, figsize = (14,14) )
-
-    axs = axs.ravel()
-
-    for ii, u in enumerate( u_ls[0:-1] ):
-
-        axs[2*ii].imshow(u.cpu().numpy(), cmap='managua', extent=(0,1,0,1))
-        axs[2*ii].set_box_aspect(1)
-        axs[2*ii].axes.get_xaxis().set_ticks([])
-        axs[2*ii].axes.get_yaxis().set_ticks([])
-        axs[2*ii].set_title(f"$k = {(ii) * 100 }/{num_iters_max}$")
-
-        counts, bins = np.histogram(u_ls[ii])
-        axs[2*ii+1].hist(bins[:-1], bins, weights=counts, color = "gray", density = True)
-        axs[2*ii+1].set_xlabel("$u_{ij}$")
-        axs[2*ii+1].set_ylabel("$p(u)$")
-        axs[2*ii+1].grid(color = "gray")
-
-        ymin, ymax = axs[2*ii+1].get_ylim()
-        xmin, xmax = axs[2*ii+1].get_xlim()
-        axs[2*ii+1].set_yticks(np.round(np.linspace(ymin, ymax, 4), 2))
-        axs[2*ii+1].set_xticks(np.round(np.linspace(xmin, xmax, 4), 2))
+        
+        if SHOW_PLOT:
+            plt.show()
+            plt.close()
 
 
-    fig.tight_layout()
-    plt.savefig(FOLDER_PATH / f"domain_evolution_N={N}_num-iters={num_iters_max}_gamma={gamma}.png", dpi = 300)
-    plt.show()
+    if SUMMARY:
+        u_ls, history = gradient_descent(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, **asdict(labyrinth_data_params),**asdict(gd_sim_params), **asdict(sim_config), SAVE_U_HISTORY=100)    
+        
+        fig, axs = plt.subplots( 5, 4, figsize = (14,14))
+
+        axs = axs.ravel()
+
+        for ii, u in enumerate( u_ls[0:-1] ):
+
+            axs[2*ii].imshow(u.cpu().numpy(), cmap='managua', extent=(0,1,0,1))
+            #axs[2*ii].set_box_aspect(1)
+            axs[2*ii].axes.get_xaxis().set_ticks([])
+            axs[2*ii].axes.get_yaxis().set_ticks([])
+            axs[2*ii].set_title(rf"$u_{{n={(ii) * 100 }}}(x,y)$")
+
+            counts, bins = np.histogram(u_ls[ii])
+            axs[2*ii+1].hist(bins[:-1], bins, weights=counts, color = "gray", density = True)
+        
+            axs[2*ii+1].set_ylabel("$p(u_n)$")
+            axs[2*ii+1].grid(color = "gray")
+
+            ymin, ymax = axs[2*ii+1].get_ylim()
+            xmin, xmax = axs[2*ii+1].get_xlim()
+            axs[2*ii+1].set_yticks(np.round(np.linspace(ymin, ymax, 4), 2))
+            axs[2*ii+1].set_xticks(np.round(np.linspace(xmin, xmax, 4), 2))
 
 
-    fig, axs = plt.subplots(2, 2, figsize = (12,8) )
+        axs[17].set_xlabel("$u^{(ij)}_n$")
+        axs[19].set_xlabel("$u^{(ij)}_n$")
+
+        fig.tight_layout()
+        plt.savefig(FOLDER_PATH / f"domain_evolution_N={N}_num-iters={num_iters_max}_gamma={gamma}.png", dpi = 300)
+        
+        if SHOW_PLOT:
+            plt.show()
+            plt.close()
+
+        fig, axs = plt.subplots(2, 2, figsize = (12,8) )
 
 
-    axs[0, 0].imshow(u_ls[-1].cpu().numpy(), cmap='managua',origin="lower", extent=(0,1,0,1) )    
-    axs[0, 0].set_box_aspect(1)
-    axs[0, 0].set_xlabel("$x$")
-    axs[0, 0].set_ylabel("$y$")
+        axs[0, 0].imshow(u_ls[-1].cpu().numpy(), cmap='managua',origin="lower", extent=(0,1,0,1) )    
+        axs[0, 0].set_box_aspect(1)
+        axs[0, 0].set_xlabel("$x$")
+        axs[0, 0].set_ylabel("$y$")
+        axs[0, 0].set_title(rf"$u_{{n={num_iters_max}}}(x,y)$")
 
-    fftu = torch.fft.fft2(u_ls[-1])
-    real_fftu = torch.fft.fftshift(fftu)
-    real_fftu = torch.abs(real_fftu)
+        fftu = torch.fft.fft2(u_ls[-1])
+        real_fftu = torch.fft.fftshift(fftu)
+        real_fftu = torch.abs(real_fftu)
 
-    axs[0, 1].imshow(real_fftu, origin = "lower") # cmap = "managua"
-    axs[0, 1].set_box_aspect(1)
-    axs[0, 1].set_xlabel("$k_x$")
-    axs[0, 1].set_ylabel("$k_y$")
+        axs[0, 1].imshow(real_fftu, origin = "lower") # cmap = "managua"
+        axs[0, 1].set_box_aspect(1)
+        axs[0, 1].set_xlabel("$k_x$")
+        axs[0, 1].set_ylabel("$k_y$")
+        axs[0, 1].set_title(rf"$\mathcal{{F}}[u_{{n={num_iters_max}}}(x,y)]$")
 
-    axs[1, 0].loglog(history["E_total"], label = "$E_{total}$")
+        axs[1, 0].loglog(history["E_total"], label = "$E_{total}$")
+        axs[1, 0].legend(loc = "lower right")
 
-
-    axs[1, 1].loglog(history["E_ex"], label="$E_{ex}$")
-    axs[1, 1].loglog(history["E_demag"], label="$E_{demag}$")
-    axs[1, 1].loglog(history["E_dw"], label="$E_{an}$")
-    axs[1, 1].legend(loc = "lower right")
-
-
-    for ii in range(2):
-        axs[1, ii].set_xlabel("iteration $k / 1$")
-        axs[1, ii].set_ylabel("energy value $E_k[us(x,y)] / 1$")
-        axs[1, ii].grid(color = "gray")
-        axs[1, ii].grid(color = "gray")
+        axs[1, 1].loglog(history["E_ex"], label="$E_{\\nabla}$")
+        axs[1, 1].loglog(history["E_demag"], label="$E_{\\mathcal{F}}$")
+        axs[1, 1].loglog(history["E_dw"], label="$E_{W}$")
+        axs[1, 1].legend(loc = "lower right")
 
 
-    fig.tight_layout()
-    plt.savefig(FOLDER_PATH / f"domain_evolution_summary_N={N}_num-iters={num_iters_max}_gamma={gamma}.png", dpi = 300)
-    plt.show()
+        for ii in range(2):
+            axs[1, ii].set_xlabel("iterator $n$")
+            axs[1, ii].set_ylabel("energy value $E[u_n(x,y)]$")
+            axs[1, ii].grid(color = "gray")
+            axs[1, ii].grid(color = "gray")
+
+
+        fig.tight_layout()
+        plt.savefig(FOLDER_PATH / f"domain_evolution_summary_N={N}_num-iters={num_iters_max}_gamma={gamma}.png", dpi = 300)
+        
+        if SHOW_PLOT:
+            plt.show()

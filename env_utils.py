@@ -25,6 +25,7 @@ class PATHS:
     PATH_PARAMS_STUDY = BASE_OUTPUT / 'params_study'
 
     PATH_EXAMPLES = _BASE / 'examples'
+    PATH_THESIS = _BASE / 'thesis'
 
     PATH_EVOLUTION = BASE_OUTPUT / 'evolution'
 
@@ -33,8 +34,18 @@ class PATHS:
 # ---------------------------------------------------------------
 
 
-def plotting_style(CHANGE_FONT_SIZES = True):
+def plotting_style(CHANGE_FONT_SIZES = True, USE_TEX = True):
+    
     plt.style.use('classic')
+
+
+    if USE_TEX:
+        
+        plt.rcParams.update({
+            'text.usetex': True,
+            'font.family': 'serif',
+        })
+
 
 
     if CHANGE_FONT_SIZES:
