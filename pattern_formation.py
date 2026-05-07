@@ -166,8 +166,8 @@ def define_spaces_adapted(gridsize, N):
 
 # ------------------------------------------------------------------
 
-def initialize_u0_random(N, REAL = False):
-    amplitude = 1.0
+def initialize_u0_random(N, REAL = True):
+    amplitude = 10.0
     if REAL:
         u0 = amplitude * (2 * torch.rand(N, N, dtype=dtype_real, device=device) - 1) 
     else:

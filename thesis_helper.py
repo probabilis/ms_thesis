@@ -8,6 +8,8 @@ from env_utils import plotting_style, PATHS
 
 def plot_double_well(OUT_PATH):
 
+    plt.figure(figsize = (6,4) )
+
     x = torch.arange(-2, +2, 0.01)
     y = double_well_potential(x, 9/32)
     
@@ -15,10 +17,10 @@ def plot_double_well(OUT_PATH):
     plt.vlines(0, y.min()-0.1,y.max(), color = "gray")
     plt.hlines(0, x.min(), x.max(), color = "gray")
 
-    plt.plot(x, y, label = "$c_0 (1 - u^2)^2$", linewidth = 2)
+    plt.plot(x, y, label = "$W(u) = c_0 (1 - u^2)^2$", linewidth = 2)
     
     plt.ylim(-0.1, y.max())
-    plt.title("Double Well function $W(u)$")
+    #plt.title("Double Well function $W(u)$")
     plt.xlabel("$u$")
     plt.ylabel("$W(u)$")
     plt.legend()
@@ -53,7 +55,7 @@ def plot_nesterov_momentum_paramter(OUT_PATH):
 
 
     # plt.plot(k_ls, lambda_ls)
-    plt.title("Nesterov Momentum Paramter $\\beta_n$")
+    #plt.title("Nesterov Momentum Paramter $\\beta_n$")
     plt.plot(k_ls, beta_ls, label = "$\\beta_n(\\lambda_n)$", linewidth = 2)
     plt.plot(k_ls, beta_pock_ls, label = "$\\beta_n = \\frac{n - 1}{n + 2}$", linewidth = 2)
     plt.hlines(1, k_ls[0], k_ls[-1], color = "gray")
@@ -72,6 +74,8 @@ def plot_fourier_multiplier(OUT_PATH):
 
     th = 0.1
 
+    plt.figure(figsize = (6,4) )
+
     x = torch.arange(-10,+10, 1/100)
     y = fourier_multiplier(x)
 
@@ -84,7 +88,7 @@ def plot_fourier_multiplier(OUT_PATH):
     plt.xlabel("wavevector $k$")
     plt.ylabel("$\\sigma(k)$")
     plt.ylim(-0.1, y.max())
-    plt.title("Fourier Multiplier $\\sigma(k)$")
+    #plt.title("Fourier Multiplier $\\sigma(k)$")
     plt.legend()
     plt.grid(color = "gray")
     plt.tight_layout()
@@ -93,6 +97,8 @@ def plot_fourier_multiplier(OUT_PATH):
 
 
 def plot_fourier_multiplier_thickness_loop(OUT_PATH):
+
+    plt.figure(figsize = (6,4) )
 
     th_ls = [0.1, 1.0, 10.0]
 
@@ -115,7 +121,7 @@ def plot_fourier_multiplier_thickness_loop(OUT_PATH):
     plt.hlines(0, x.min(), x.max(), color = "gray")
 
     plt.tight_layout()
-    #plt.savefig(OUT_PATH / "fourier_multiplier.png", dpi = 300)
+    plt.savefig(OUT_PATH / "fourier_multiplier_with_thickness.png", dpi = 300)
     plt.show()
 
 
@@ -163,7 +169,7 @@ if __name__ == "__main__":
 
     plotting_style()
     
-    #plot_double_well(OUT_PATH)
-    #plot_nesterov_momentum_paramter(OUT_PATH)
-    #plot_fourier_multiplier(OUT_PATH)
-    plot_fourier_multiplier_thickness_loop(OUT_PATH)
+    plot_double_well(OUT_PATH)
+    plot_nesterov_momentum_paramter(OUT_PATH)
+    plot_fourier_multiplier(OUT_PATH)
+    #plot_fourier_multiplier_thickness_loop(OUT_PATH)

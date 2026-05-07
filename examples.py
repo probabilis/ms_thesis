@@ -5,46 +5,58 @@ from params import labyrinth_data_params, get_DataParameters, sim_config
 from params import pgd_sim_params as ngd_sim_params
 import torch
 
+from lipschitz import evaluate_lipschitz_constant
+
 from dataclasses import replace, asdict
 
+import matplotlib.pyplot as plt
 
 if __name__ == "__main__":
-
-
-    plotting_style()
-    FOLDER_PATH = PATHS.PATH_EXAMPLES
-
-    LIVE_PLOT = True
-    DATA_LOG = True
-
-    labyrinth_data_params = replace(labyrinth_data_params, N = 256, gamma = 0.0004)
-
-    sim_config = replace(sim_config, ENERGY_STOP_TOL = 1e-14)
-
-    gridsize, N, th, epsilon, gamma = get_DataParameters(labyrinth_data_params)
-
-    u0 = initialize_u0_random(N, REAL = True) 
-    
-    print_bars()
-    print(labyrinth_data_params)
-    print(ngd_sim_params)
-    print_bars()
 
     EXAMPLE_1 = False
     EXAMPLE_2 = True
 
 
-    if EXAMPLE_1:
-        gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, **asdict(labyrinth_data_params),**asdict(ngd_sim_params),**asdict(sim_config) )
 
-    u_ls = []
-    import matplotlib.pyplot as plt
-    fig, axs = plt.subplots(1, 4)
+    plotting_style()
+    FOLDER_PATH = PATHS.PATH_EXAMPLES
 
     LIVE_PLOT = False
     DATA_LOG = False
 
-    from lipschitz import evaluate_lipschitz_constant
+    labyrinth_data_params = replace(labyrinth_data_params, N = 100, gamma = 0.0008)
+
+    gridsize, N, th, epsilon, gamma = get_DataParameters(labyrinth_data_params)
+    ngd_sim_params = replace(ngd_sim_params, tau = evaluate_lipschitz_constant(gamma, epsilon, N, gridsize, th))
+
+    print_bars()
+    print(labyrinth_data_params)
+    print(ngd_sim_params)
+    print_bars()
+
+    u0 = initialize_u0_random(N)
+
+    from gradient_descent import gradient_descent
+
+
+    if EXAMPLE_1:
+        u, e = gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, **asdict(labyrinth_data_params),**asdict(ngd_sim_params),**asdict(sim_config) )
+        #u, energies = gradient_descent(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamma, epsilon, c0 = 9/32, alpha = 0.1, num_iters = 50_000, LAPLACE_SPECTRAL=False, STOP_BY_TOL = True)
+
+
+        u = u[30:70, :]
+        im = plt.imshow(u.cpu(), cmap="managua", origin="lower")
+        plt.axis("off")
+        plt.colorbar(label = r"$m_z$", shrink = 0.4) #ax=ax, fraction=0.046, pad=0.04
+        plt.tight_layout()
+        plt.savefig(FOLDER_PATH / "pattern_example_with_colobar.png", dpi = 300)
+        plt.show()
+
+
+    u_ls = []
+    
+    fig, axs = plt.subplots(1, 5)
+    
 
     if EXAMPLE_2:
         for ii, th in enumerate([0.1, 0.5, 1.0, 10, 100]):

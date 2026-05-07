@@ -1,13 +1,9 @@
 import torch
 import math
-
-from pattern_formation import dtype_real, fourier_multiplier, device, double_well_potential, define_spaces
-import matplotlib.pyplot as plt
+from pattern_formation import dtype_real, fourier_multiplier, device, define_spaces
 
 
-def evaluate_lipschitz_constant(gamma, eps, N, gridsize, th = 1.0, PLOT_DOUBLE_WELL = False, DEBUG = False):
-
-
+def evaluate_lipschitz_constant(gamma, eps, N, gridsize, th = 1.0, DEBUG = False):
 
     h = gridsize / N
     x, k, modk, modk2 = define_spaces(gridsize, N)
@@ -49,21 +45,9 @@ def evaluate_lipschitz_constant(gamma, eps, N, gridsize, th = 1.0, PLOT_DOUBLE_W
         print("Lipschitz upper bound L =", L_total.item())
         print("Safe step size eta ~", eta_safe.item())
 
-    return eta_safe
+    return float(eta_safe)
+
 
 if __name__ == "__main__":
-    """
-    N = 664
-    gridsize = 1.0
-    gamma = 0.005
-    eps = 0.01
-
-    evaluate_lipschitz_constant(gamma, eps, N, gridsize)
-    """
-
-    N = 200
-    gridsize = 1.0
-    gamma = 0.002
-    eps = 0.01
-
-    evaluate_lipschitz_constant(gamma, eps, N, gridsize, DEBUG=True)
+    print("Lipschitz constant test: ")
+    evaluate_lipschitz_constant(gamma = 0.002, eps = 0.01, N = 200, gridsize = 1.0, DEBUG=True)
