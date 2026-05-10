@@ -1,6 +1,7 @@
 import torch
 import math
-from pattern_formation import dtype_real, fourier_multiplier, device, define_spaces
+from utils.pattern_formation import dtype_real, fourier_multiplier, device, define_spaces
+
 
 
 def evaluate_lipschitz_constant(gamma, eps, N, gridsize, th = 1.0, DEBUG = False):

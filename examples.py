@@ -1,20 +1,27 @@
-from gd_nesterov import gradient_descent_nesterov
-from env_utils import plotting_style, PATHS, print_bars
-from pattern_formation import dtype_real, device, initialize_u0_random
-from params import labyrinth_data_params, get_DataParameters, sim_config
-from params import pgd_sim_params as ngd_sim_params
-import torch
-
-from lipschitz import evaluate_lipschitz_constant
-
 from dataclasses import replace, asdict
-
 import matplotlib.pyplot as plt
+
+from optimization.gd_nesterov import gradient_descent_nesterov
+
+from utils.env_utils import plotting_style, PATHS, print_bars
+from utils.pattern_formation import initialize_u0_random
+from params.opt_params import labyrinth_data_params, get_DataParameters, sim_config
+from params.opt_params import pgd_sim_params as ngd_sim_params
+
+from params.lipschitz import evaluate_lipschitz_constant
+
+
+"""
+functional with new dir layout
+"""
+
+
+
 
 if __name__ == "__main__":
 
-    EXAMPLE_1 = False
-    EXAMPLE_2 = True
+    EXAMPLE_1 = True
+    EXAMPLE_2 = False
 
 
 
@@ -36,13 +43,11 @@ if __name__ == "__main__":
 
     u0 = initialize_u0_random(N)
 
-    from gradient_descent import gradient_descent
+    
 
 
     if EXAMPLE_1:
         u, e = gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, **asdict(labyrinth_data_params),**asdict(ngd_sim_params),**asdict(sim_config) )
-        #u, energies = gradient_descent(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamma, epsilon, c0 = 9/32, alpha = 0.1, num_iters = 50_000, LAPLACE_SPECTRAL=False, STOP_BY_TOL = True)
-
 
         u = u[30:70, :]
         im = plt.imshow(u.cpu(), cmap="managua", origin="lower")

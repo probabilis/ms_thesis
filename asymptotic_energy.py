@@ -1,19 +1,21 @@
-import torch
 import numpy as np
-from tqdm import tqdm
 import matplotlib.pyplot as plt
 from dataclasses import asdict, replace
 
-from pattern_formation import initialize_u0_random
+from utils.pattern_formation import initialize_u0_random
 
-from params import labyrinth_data_params, get_DataParameters, get_SimulationParamters
-from params import pgd_sim_params as ngd_sim_params
+from params.opt_params import labyrinth_data_params, get_DataParameters, get_SimulationParamters, sim_config
+from params.opt_params import pgd_sim_params as ngd_sim_params
+from params.lipschitz import evaluate_lipschitz_constant
 
-from env_utils import PATHS, print_bars, plotting_style, log_data
+from utils.env_utils import PATHS, print_bars, plotting_style, log_data
 
-from gd_nesterov import gradient_descent_nesterov
-from params import sim_config
+from optimization.gd_nesterov import gradient_descent_nesterov
 
+
+"""
+functional with new dir layout
+"""
 
 
 if __name__ == "__main__":
@@ -43,8 +45,6 @@ if __name__ == "__main__":
     #gamma_ls = np.array([1/500, 1/800, 1/1000, 1/1500, 1/2000, 1/3000, 1/4000, 1/5000, 1/8000, 1/12000])
     energies_ls = []
 
-    from lipschitz import evaluate_lipschitz_constant
-
     for ii in range(N_est):
         for gamma in gamma_ls:
             print_bars()
@@ -64,6 +64,10 @@ if __name__ == "__main__":
 
     
     def algebraic_scaling(gamma):
+        """
+        Theoretical scaling of the energy over gamma
+        -> power law with gamma^(1/2) as Condette described in his thesis
+        """
         return gamma**(1/2)
 
     plt.loglog(gamma_ls, energies_ls, label = "exp.")

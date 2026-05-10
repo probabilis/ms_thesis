@@ -2,20 +2,15 @@ import torch
 import numpy as np
 from tqdm import tqdm
 import matplotlib.pyplot as plt
-from dataclasses import asdict, replace
 
-from gd_proximal import prox_h
-from params import labyrinth_data_params, get_DataParameters, get_SimulationParamters
-from params import pgd_sim_params as ngd_sim_params
+from utils.env_utils import plotting_schematic, log_data
+from utils.pattern_formation import prox_h, fourier_multiplier, energy_value, energy_value_fd,grad_g, grad_fd, define_spaces, dtype_real, device
 
-from env_utils import PATHS, print_bars, get_args, plotting_style, plotting_schematic, log_data
-from pattern_formation import fourier_multiplier, energy_value, energy_value_fd,grad_g, grad_fd, initialize_u0_random, define_spaces, dtype_real, device
-
-# ---------------------------------------------------------------
 
 
 def gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamma, epsilon, tau, c0, num_iters, prox_newton_iters, tol_newton, LAPLACE_SPECTRAL = False, STOP_BY_TOL = True, ENERGY_STOP_TOL = 1e-10, PBC = True):
-    # Nesterov proximal gradient with adaptive restart
+    
+    # Nesterov proximal gradient descent algo
     
     x, k, modk, modk2 = define_spaces(gridsize, N)
     
@@ -25,15 +20,17 @@ def gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N,
     M_k = sigma_k + gamma * epsilon * modk2 * (2*torch.pi)**2  # M_k for spectral calculation of LAPLACE
 
     if LAPLACE_SPECTRAL:
-        energies = [energy_value(gamma, epsilon, N, u0, M_k, c0)]
+        energies = [energy_value(gamma, epsilon, N, u0, c0, sigma_k, modk2)]
     else:        
         print("PBC: ", PBC)
         energies = [energy_value_fd(u0, sigma_k, N, gamma, epsilon, c0, PBC)]
+
     
     # --- initialization ---
     u_prev = u0.clone()
     u_curr = u0.clone()
     t_prev = 1.0
+
 
     # plotting setup
     if LIVE_PLOT or DATA_LOG:
@@ -41,7 +38,7 @@ def gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N,
         fig2, ax2 = plt.subplots(figsize = (10,10))
         plt.ion()
 
-    # --- main loop ---
+
     try:
         for n in tqdm(range(1, num_iters+1), desc="Nesterov GD"):
             # 1) extrapolation
@@ -66,7 +63,7 @@ def gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N,
 
             # 5) energy evaluation
             if LAPLACE_SPECTRAL:
-                E = energy_value(gamma, epsilon, N, u_curr, M_k, c0)
+                E = energy_value(gamma, epsilon, N, u_curr, c0, sigma_k, modk2)
             else:
                 E = energy_value_fd(u_curr, sigma_k, N, gamma, epsilon, c0, PBC)
             
@@ -92,28 +89,3 @@ def gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N,
 
     print("Last energy", np.mean(energies[10:-1]))
     return u_curr, energies
-
-# ---------------------------------------------------------------
-
-if __name__ == "__main__":
-
-    plotting_style()
-    FOLDER_PATH = PATHS.PATH_NESTEROV
-
-    args = get_args()
-    LIVE_PLOT = args.live_plot
-    DATA_LOG = args.data_log
-
-    labyrinth_data_params = replace(labyrinth_data_params, N = 664, gamma = 0.0003, th = 1.0) # 0.00022
-    gridsize, N, th, epsilon, gamma = get_DataParameters(labyrinth_data_params)
-    u0 = initialize_u0_random(N, REAL = True)
-    tau = 0.01
-
-    ngd_sim_params = replace(ngd_sim_params, tau = tau)
-
-    print_bars()
-    print(labyrinth_data_params)
-    print(ngd_sim_params)
-    print_bars()
-
-    gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, **asdict(labyrinth_data_params),**asdict(ngd_sim_params), LAPLACE_SPECTRAL=True, ENERGY_STOP_TOL=1e-12)

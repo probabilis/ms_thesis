@@ -1,9 +1,7 @@
-
 from dataclasses import dataclass, replace, asdict
 from typing import Optional, Union
-import os
-from env_utils import term_size, bcolors
-from pattern_formation import define_spaces
+
+from utils.env_utils import term_size
 
 # ----------------------------------------- #
 
@@ -13,6 +11,8 @@ def print_data_class(dataclass_instance):
     for name, value in asdict(dataclass_instance).items():
         print(f"{name}: {value}")
     print('─' * term_size.columns)
+
+# ----------------------------------------- #
 
 @dataclass
 class DataParameters:
@@ -30,7 +30,7 @@ class CN_SimulationParameters:
     max_it: int
     tol: float
     stop_limit: float
-    c0 : float # integral constant
+    c0 : float
 
 
 @dataclass
@@ -88,16 +88,16 @@ gridsize = 1,
 N = 64,
 th = 1.0,
 epsilon = 1/100,
-gamma = 1/2000
+gamma = 1/1000
 )
 
 exp_data_params = replace(labyrinth_data_params, N = 664)
 
-# Sinus initial config data params
-sin_data_params = replace(labyrinth_data_params, gamma = 1/50)
+sin_data_params = replace(labyrinth_data_params, gamma = 1/50) # initial sinus config data params
+
 
 # ----------------------------------------- #
-# Simulation params
+# Standard simulation params definition
 
 # Crank Nicolson
 cn_sim_params = CN_SimulationParameters(
@@ -116,7 +116,7 @@ c0 = 9/32,
 alpha = 0.1 # ~0.35 save learning rate for the simulation / see ~/lipschitz.py 
 )
 
-# PGD sim params
+# PGD + Nesterov sim params
 pgd_sim_params = PGD_SimulationParameters(
 tau = 0.1,              # proximal gradient step size
 num_iters = 50_000,     # total iterations

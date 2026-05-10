@@ -1,23 +1,16 @@
 import torch
 import numpy as np
-from tqdm import tqdm
 import matplotlib.pyplot as plt
 from dataclasses import asdict, replace
 
-from pattern_formation import initialize_u0_random
+from utils.env_utils import PATHS, print_bars, plotting_style, log_data, term_size, main_colormap
+from utils.pattern_formation import initialize_u0_random
 
-from params import labyrinth_data_params, get_DataParameters, get_SimulationParamters
-from params import pgd_sim_params as ngd_sim_params
+from params.opt_params import labyrinth_data_params, get_DataParameters, get_SimulationParamters, sim_config
+from params.opt_params import pgd_sim_params as ngd_sim_params
+from params.lipschitz import evaluate_lipschitz_constant
+from optimization.gd_nesterov import gradient_descent_nesterov
 
-from env_utils import PATHS, print_bars, plotting_style, log_data, term_size
-
-from gd_nesterov import gradient_descent_nesterov
-from params import sim_config
-import math
-from lipschitz import evaluate_lipschitz_constant
-
-import torch
-import matplotlib.pyplot as plt
 
 
 def radial_wavelength_spectrum(
@@ -136,7 +129,7 @@ def radial_wavelength_spectrum(
     if plot:
         fig, axes = plt.subplots(1, 3, figsize=(16, 4))
 
-        im0 = axes[0].imshow(u.cpu(), cmap="gray", origin="lower")
+        im0 = axes[0].imshow(u.cpu(), cmap=main_colormap, origin="lower")
         axes[0].set_title("Input image")
         plt.colorbar(im0, ax=axes[0], fraction=0.046, pad=0.04)
 
@@ -146,9 +139,9 @@ def radial_wavelength_spectrum(
 
         axes[2].plot(k_centers.cpu(), profile.cpu(), lw=2)
         axes[2].axvline(k_peak, linestyle="--", label=f"peak k = {k_peak:.4g}")
-        axes[2].set_xlabel("Radial spatial frequency k [cycles / unit length]")
+        axes[2].set_xlabel("Radial spatial frequency $k$ [cycles / unit length]")
         axes[2].set_ylabel("Radial mean intensity")
-        axes[2].set_title(f"Characteristic wavelength ≈ {wavelength_peak:.4g}")
+        axes[2].set_title(fr"Characteristic wavelength $\\approx$ {wavelength_peak:.4g}")
         axes[2].legend()
         axes[2].grid(True, alpha=0.3)
 
@@ -160,8 +153,8 @@ def radial_wavelength_spectrum(
         plt.figure(figsize=(6, 4))
         plt.plot(wavelength[finite], profile.cpu()[finite], lw=2)
         plt.axvline(wavelength_peak, linestyle="--",
-                    label=f"peak λ = {wavelength_peak:.4g}")
-        plt.xlabel("Wavelength λ [unit length]")
+                    label=fr"peak $\\lambda$  = {wavelength_peak:.4g}")
+        plt.xlabel(fr"Wavelength $\\lambda$ [unit length]")
         plt.ylabel("Radial mean intensity")
         plt.title("Spectrum vs wavelength")
         plt.grid(True, alpha=0.3)
@@ -228,7 +221,7 @@ if __name__ == "__main__":
     if SPECTRUM:
         plt.figure() 
         plt.title("Characteristic Radial spatial frequency $k$ [cycles / unit length] of spectrum")
-        plt.xlabel("Gamma $\\gamma$")
+        plt.xlabel(r"Gamma $\\gamma$")
         plt.ylabel("Radial spatial frequency $k$ [cycles / unit length]")
         plt.plot(gamma_ls, values)
         plt.grid(color = "gray")

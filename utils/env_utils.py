@@ -80,6 +80,10 @@ def print_bars(term_size = term_size):
     print(term_size.columns * "-")
 
 
+
+main_colormap = "managua"
+
+
 class bcolors:
     """
     class for colored terminal output
@@ -168,6 +172,8 @@ def plotting_schematic(folder_path, ax1, fig1, ax2, fig2, u, energies, N, num_it
     ax1.set_title(f"Iteration {ii}")
     fig1.savefig(folder_path / f"{file_name}_pattern.png")
     ax2.plot(torch.arange(0,len(energies)), energies)
+    ax2.set_yscale("log")
+    ax2.set_xscale("log")
 
     ax2.set_title("energy evolution")
     fig2.savefig(folder_path / f"{file_name}_energy.png")

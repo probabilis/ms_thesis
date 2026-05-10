@@ -1,17 +1,17 @@
 import matplotlib.pyplot as plt
-import matplotlib.mlab as mlab
 from pathlib import Path
 import numpy as np
 import torch
 import pandas as pd
 from scipy import ndimage as ndi
 from scipy.stats import norm
-from skimage import exposure, filters, morphology, measure
+from skimage import filters, morphology, measure
 from sklearn.mixture import GaussianMixture
 from skimage.morphology import disk
 from typing import Literal
 
-from env_utils import plotting_style
+from utils.env_utils import plotting_style
+
 
 def standardize_shift(x):
 
@@ -67,7 +67,7 @@ def clean_domains(y, min_obj=100, min_hole=100, se_radius=2):
     y_clean = np.where(bright, 1.0, -1.0).astype(np.float32)
     return y_clean
 
-def read_gmm(CLEAN_DOMAINS = False):
+def read_gmm(z, CLEAN_DOMAINS = False):
 
     # 4) fit 2-component GMM on intensities
     x = z.reshape(-1,1)

@@ -1,7 +1,6 @@
 import torch
 import numpy as np
-from env_utils import tensor_type
-from PIL import Image
+import torch.nn.functional as F
 
 # ------------------------------------------------------------------
 # helper functions for Magnetic Pattern formation
@@ -52,7 +51,6 @@ def double_well_prime(u, c0):
 
 # ------------------------------------------------------------------
 
-import torch.nn.functional as F
 
 def laplacian2d(input_tensor):
 
@@ -129,39 +127,6 @@ def define_spaces(gridsize, N):
     modk2 = (kx**2 + ky**2).to(dtype_real)
     modk = torch.sqrt(modk2).to(dtype_real)
     
-    return x, k, modk, modk2
-
-# ------------------------------------------------------------------
-
-def define_spaces_adapted(gridsize, N):
-    
-    x = gridsize / N * torch.arange(N, dtype=dtype_real, device=device) # position array
-
-    SCALING_FACTOR = 1
-
-    k = torch.cat([torch.arange(0, N // 2, dtype=dtype_real, device = device)/SCALING_FACTOR, torch.arange(-N // 2, 0, dtype=dtype_real, device = device)/SCALING_FACTOR])
-
-    PERIODIC_ = False
-    if PERIODIC_:
-        period_factor=1.0
-        amplitude=1.0
-        k = amplitude * torch.sin(2 * torch.pi * k / (N / period_factor))
-
-    EXP = True
-    if EXP:
-        exp_base=1.2
-        k_pos = torch.logspace(0, np.log(N//2)/np.log(exp_base), N//2, 
-                            base=exp_base, dtype=dtype_real, device=device)
-
-        # mirror to negative side
-        k_neg = -torch.flip(k_pos, dims=[0])
-
-        # concatenate negative and positive
-        k = torch.cat([k_pos, k_neg])
-
-    xi, eta = torch.meshgrid(k, k, indexing='ij')
-    modk2 = (xi ** 2 + eta ** 2).to(dtype_real)
-    modk = torch.sqrt(modk2).to(dtype_real)
     return x, k, modk, modk2
 
 # ------------------------------------------------------------------
@@ -251,7 +216,7 @@ def grad_fd_pbc(u: torch.Tensor, dx : float):
 def energy_value_fd(u, sigma_k, N, gamma, epsilon, c0, PBC = True, RETURN_SEPERATE = False):
     """
     Energy functional with finite differences
-    E = LaPlace + DW + FM
+    E = Gradient + DW + FM
     """
 
     dx = 1/N
@@ -264,33 +229,46 @@ def energy_value_fd(u, sigma_k, N, gamma, epsilon, c0, PBC = True, RETURN_SEPERA
     E_GRAD = 0.5 * (gamma * epsilon) * torch.sum(ux*ux + uy*uy) / (N**2) # normalized
 
     # nonlocal Fourier energy
-    ftu = torch.fft.fft2(u, norm = 'ortho') / (N**2) # normalized
+    ftu = torch.fft.fft2(u, norm = 'ortho') / (N**2)
     E_FM = 0.5 * torch.sum(sigma_k * torch.abs(ftu)**2)
 
     # double-well energy
     W = double_well_potential(u, c0)
-    E_DW = (gamma / epsilon) * torch.sum(W) / N**2 # normalized
+    E_DW = (gamma / epsilon) * torch.sum(W) / (N**2) # normalized
 
     if RETURN_SEPERATE:
-        return E_GRAD, E_DW, E_FM
+        return E_GRAD.item(), E_DW.item(), E_FM.item()
     else:
         return (E_GRAD + E_DW + E_FM).item()
 
+
 # ------------------------------------------------------------------
 
-def energy_value(gamma, epsilon, N, u, M_k, c0):
+
+def energy_value(gamma, epsilon, N, u, c0, sigma_k, modk2, RETURN_SEPERATE = False):
     """
     Energy functional with spectral variant
     E = LaPlace + DW + FM 
     """
+    ftu = torch.fft.fft2(u, norm = 'ortho') / (N**2)
+
+    E_FM = 0.5 * torch.sum( sigma_k * torch.abs(ftu)**2 ) 
+
+    # Condette used this definition of the Gradient term in the discrete energy evaluation, in my opinion this is wrong but idk
+    #E_LP = 0.5 * torch.sum( gamma * epsilon * modk2 * torch.abs(ftu)**2 ) / (N**2) # normalized # (2 * torch.pi)**2
+
+    ux, uy = grad_fd_pbc(u, 1/N)
+    E_GRAD = 0.5 * (gamma * epsilon) * torch.sum(ux*ux + uy*uy) / (N**2) # normalized
 
     W = double_well_potential(u, c0)
-    ftu = torch.fft.fft2(u, norm = 'ortho') #/ N**2
-    
-    E_DW = (gamma / epsilon) * torch.sum(W) / N**2 
-    E_LPFM = 0.5 * torch.sum( M_k * torch.abs(ftu)**2 )
+    E_DW = (gamma / epsilon) * torch.sum(W) / (N**2) # normalized
 
-    return (E_LPFM + E_DW).item()
+    if RETURN_SEPERATE:
+        return E_GRAD.item(), E_DW.item(), E_FM.item()
+    else:
+        return (E_GRAD + E_DW + E_FM).item()
+
+
 
 # ------------------------------------------------------------------
 
@@ -343,60 +321,3 @@ def prox_h(v, tau, gamma, eps, c0, maxiter, tol):
         x = x_new
 
     return x
-
-# ------------------------------------------------------------------
-# ------------------------------------------------------------------
-# Condette
-
-def N_eps(U_np1, U_n, epsilon, gamma, c0):
-    return 2 * gamma * c0 / epsilon * (U_np1 + U_n) * (1 - (torch.abs(U_np1) ** 2 + torch.abs(U_n) ** 2) / 2)
-
-# ------------------------------------------------------------------
-
-def fixpoint(U_0, L_eps, dt, N, epsilon, gamma, Nmax, tol, c0):
-    DEBUG = False
-
-    _ones = torch.ones(N)
-
-    G_m = (_ones - dt / 2 * L_eps)
-    G_p = (_ones + dt / 2 * L_eps)
-
-    CT = torch.fft.ifft2( G_m / G_p * torch.fft.fft2(U_0)).real
-
-    U_n = U_0.clone()    
-    error = 10.0
-    ii = 0
-    conv = False
-
-    energies_fixpoint = []
-
-    if DEBUG:
-        print('max L:', torch.max(L_eps).item())
-        print('max |CT|:', torch.max(torch.abs(CT)).item())
-        print('mean |u0|:', torch.mean(torch.abs(U_0)).item())
-        print('mean |u0|^2:', torch.mean(torch.abs(U_0)**2).item())
-
-
-    while ii < Nmax and error > tol:
-
-        non_linear = N_eps(U_n, U_0, epsilon, gamma, c0) # for fixed U_0 (initial image config.)
-
-        if DEBUG:
-            print('max |NL|:', torch.max(torch.abs(non_linear)).item())
-
-        U_np1 = torch.fft.ifft2( torch.fft.fft2(dt * non_linear) / G_p ).real + CT
-        error = torch.max(torch.abs(U_np1 - U_n)).item()
-
-        U_0 = U_n
-        U_n = U_np1
-        ii += 1
-
-        curr_energy = energy_value(gamma, epsilon, N, U_n, L_eps, c0)
-        energies_fixpoint.append(curr_energy)
-
-    if error < tol:
-        conv = True
-
-    return ii, U_n, error, conv, energies_fixpoint
-
-# ------------------------------------------------------------------

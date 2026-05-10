@@ -1,25 +1,21 @@
-import torch
-import numpy as np
-from tqdm import tqdm
 import matplotlib.pyplot as plt
 from dataclasses import asdict, replace
 
-from pattern_formation import initialize_u0_random
+from utils.env_utils import PATHS, print_bars, get_args, plotting_style, plotting_schematic, log_data
+from utils.pattern_formation import initialize_u0_random
 
-from params import labyrinth_data_params, get_DataParameters, get_SimulationParamters
-from params import pgd_sim_params as ngd_sim_params
+from params.opt_params import labyrinth_data_params, sim_config, get_DataParameters, get_SimulationParamters
+from params.opt_params import pgd_sim_params as ngd_sim_params
 
-from env_utils import PATHS, print_bars, get_args, plotting_style, plotting_schematic, log_data
+from optimization.gd_nesterov import gradient_descent_nesterov
 
-from gd_nesterov import gradient_descent_nesterov
-from params import sim_config
+
 
 
 if __name__ == "__main__":
 
     SINGLE_COMPARISON = True
     GAMMA_SWEEP = False
-
 
     plotting_style()
     FOLDER_PATH = PATHS.PATH_COMPARISON
@@ -95,7 +91,6 @@ if __name__ == "__main__":
                 axs[ii, tt].set_title(f"$\\gamma = {_gamma:.5f}$")
 
         
-
         fig.canvas.draw()  # ensures positions are compute
 
         for kk in range(0, len(_types)):

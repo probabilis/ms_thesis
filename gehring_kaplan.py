@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 
+
+
 thickness_nm = np.array([1.3, 1.31, 1.32, 1.34, 1.36, 1.40], dtype=float)
 domain_width_um = np.array([17.07508226, 5.69169425, 5.69169425,
                             3.41501639, 1.89723127, 1.31346779], dtype=float)

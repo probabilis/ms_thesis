@@ -1,17 +1,16 @@
-from env_utils import read_sim_dat_from_csv, plotting_style
-from params import labyrinth_data_params, exp_data_params, get_DataParameters
-from dataclasses import replace
-from env_utils import PATHS
 import numpy as np
-from read import read_csv
 import torch
-import json
 import matplotlib.pyplot as plt
 import pandas as pd
 
+from utils.env_utils import PATHS, read_sim_dat_from_csv, plotting_style, main_colormap
+from exp_data_processing.read import read_csv
+from params.opt_params import labyrinth_data_params, exp_data_params, get_DataParameters
+from exp_data_processing.postprocessing import quality_scores
+
 from spectrum_analysis import radial_wavelength_spectrum
 from exchange_length import reduced_exp_image_width
-from postprocessing import quality_scores
+
 
 
 
@@ -72,21 +71,22 @@ if __name__ == "__main__":
 
             new_index = arrangement[ii] - 1
 
-            axs[0, new_index].imshow(u_exp, origin="lower", extent=(0,1,0,1))
+            axs[0, new_index].imshow(u_exp, cmap = main_colormap, origin="lower", extent=(0,1,0,1))
 
 
             u_sim = torch.tensor(u_sim.values)
             axs[1, new_index].set_title(f"$\\gamma$ = {_gamma} \n $\\lambda$ = {_lambda}")
-            axs[1, new_index].imshow(u_sim, origin="lower", extent=(0,1,0,1))
+            axs[1, new_index].imshow(u_sim, cmap = main_colormap, origin="lower", extent=(0,1,0,1))
             
             
             self_u_sim = torch.tensor(self_u_sim.values)
-            axs[2, new_index].imshow(self_u_sim, origin="lower", extent=(0,1,0,1))
+            axs[2, new_index].imshow(self_u_sim, cmap = main_colormap, origin="lower", extent=(0,1,0,1))
             axs[2, new_index].set_title(f"$\\gamma$ = {self_picked_gamma} \n $\\lambda$ = {self_picked_lambda}")
 
 
             fisherJ, perimeter, W = quality_scores(u_exp, self_u_sim)
-            axs[3, new_index].imshow(W.float(), origin="lower", extent=(0,1,0,1) )
+            W = torch.where(torch.abs(self_u_sim) > 0.15, 0, self_u_sim)
+            axs[3, new_index].imshow(W.float(), cmap = main_colormap, origin="lower", extent=(0,1,0,1) )
             axs[3, new_index].set_title(f"$S(u)$ = {fisherJ:.4g} \n $P(u)$ = {perimeter:.5g}")
 
 
@@ -102,9 +102,6 @@ if __name__ == "__main__":
             axs[4, new_index].set_title(f"$D_p = $ {domain_pattern_length:.4g}")
             axs[4, new_index].legend()
         
-
-
-
 
 
             for jj in range(3):

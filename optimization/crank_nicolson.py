@@ -1,28 +1,96 @@
 from tqdm import tqdm
 import torch
-import numpy as np
 import matplotlib.pyplot as plt
-import time
-from pathlib import Path
-import pandas as pd
-from dataclasses import asdict, replace
-from scipy.ndimage import gaussian_filter
 
-from pattern_formation import define_spaces, fourier_multiplier, energy_value, fixpoint, initialize_u0_random
+from utils.env_utils import plotting_schematic, log_data
+from utils.pattern_formation import define_spaces, fourier_multiplier, double_well_potential
 
-from params import labyrinth_data_params, cn_sim_params, get_DataParameters, get_SimulationParamters, sin_data_params
-from env_utils import PATHS, get_args, plotting_style, plotting_schematic, log_data, print_bars
+
+# ---------------------------------------------------------------
+
+def N_eps(U_np1, U_n, epsilon, gamma, c0):
+    return 2 * gamma * c0 / epsilon * (U_np1 + U_n) * (1 - (torch.abs(U_np1) ** 2 + torch.abs(U_n) ** 2) / 2)
+
+# ------------------------------------------------------------------
+
+def energy_value(gamma, epsilon, N, u, M_k, c0):
+    """
+    Energy functional with spectral variant
+    E = LaPlace + DW + FM 
+    """
+    ftu = torch.fft.fft2(u, norm = 'ortho') #/ N**2 
+
+    E_LPFM = 0.5 * torch.sum( M_k * torch.abs(ftu)**2 )
+    
+    W = double_well_potential(u, c0)
+    E_DW = (gamma / epsilon) * torch.sum(W) / N**2 
+     
+    return (E_LPFM + E_DW).item()
+
+# ------------------------------------------------------------------
+
+
+
+
+def fixpoint(U_0, L_eps, dt, N, epsilon, gamma, Nmax, tol, c0):
+    DEBUG = False
+
+    _ones = torch.ones(N)
+
+    G_m = (_ones - dt / 2 * L_eps)
+    G_p = (_ones + dt / 2 * L_eps)
+
+    CT = torch.fft.ifft2( G_m / G_p * torch.fft.fft2(U_0)).real
+
+    U_n = U_0.clone()    
+    error = 10.0
+    ii = 0
+    conv = False
+
+    energies_fixpoint = []
+
+    if DEBUG:
+        print('max L:', torch.max(L_eps).item())
+        print('max |CT|:', torch.max(torch.abs(CT)).item())
+        print('mean |u0|:', torch.mean(torch.abs(U_0)).item())
+        print('mean |u0|^2:', torch.mean(torch.abs(U_0)**2).item())
+
+
+    while ii < Nmax and error > tol:
+
+        non_linear = N_eps(U_n, U_0, epsilon, gamma, c0) # for fixed U_0 (initial image config.)
+
+        if DEBUG:
+            print('max |NL|:', torch.max(torch.abs(non_linear)).item())
+
+        U_np1 = torch.fft.ifft2( torch.fft.fft2(dt * non_linear) / G_p ).real + CT
+        error = torch.max(torch.abs(U_np1 - U_n)).item()
+
+        U_0 = U_n
+        U_n = U_np1
+        ii += 1
+
+        curr_energy = energy_value(gamma, epsilon, N, U_n, L_eps, c0)
+        energies_fixpoint.append(curr_energy)
+
+    if error < tol:
+        conv = True
+
+    return ii, U_n, error, conv, energies_fixpoint
+
 
 # ---------------------------------------------------------------
 
 def adapted_crank_nicolson(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, epsilon, gamma, dt, max_it_fixpoint, max_it, tol, stop_limit, c0, STOP_BY_TOL = True):
     
-    # Adapted Crank-Nicolson Schematic (Reference Condette Paper)
+    """
+    Adapted Crank-Nicolson Schematic as Mr. Condette implemented it in his thesis
+    time splitting + fixpoint iteration schematic
+    
+    """
+    
     x, k, modk, modk2 = define_spaces(gridsize, N)
 
-    #print(modk)
-    #print(modk2)
-    #exit(0)
     
     L = (2*torch.pi)**2 * gamma * epsilon * modk2 + fourier_multiplier(th * modk)
     #L[0, 0] = fourier_multiplier(torch.tensor(0.0))
@@ -96,29 +164,5 @@ def adapted_crank_nicolson(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th
         plotting_schematic(FOLDER_PATH, ax1, fig1, ax2, fig2, u_n, energies, N, max_it, gamma, epsilon, ii)
 
     return u_n, energies
-
-# ---------------------------------------------------------------
-
-if __name__ == "__main__":
-
-    plotting_style()
-    FOLDER_PATH = PATHS.PATH_CN
-
-    args = get_args()
-    LIVE_PLOT = args.live_plot
-    DATA_LOG = args.data_log
-
-    labyrinth_data_params = replace(labyrinth_data_params, N = 100, gamma = 0.0004, th = 0.01)
-
-    gridsize, N, th, epsilon, gamma = get_DataParameters(labyrinth_data_params)
-    u0 = initialize_u0_random(N)
-    #u0 = initialize_u0_sin(N, x)
-
-    print_bars()
-    print(labyrinth_data_params)
-    print(cn_sim_params)
-    print_bars()
-
-    adapted_crank_nicolson(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, **asdict(labyrinth_data_params), **asdict(cn_sim_params))
 
     

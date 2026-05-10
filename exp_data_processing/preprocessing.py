@@ -1,8 +1,15 @@
-#!/usr/bin/env python3
 """
 Read left/right circular polarization image stacks together with the
 associated spectroscopy metadata and reproduce the magneto-optical
 contrast plot from the MATLAB reference scripts by Dr. Thomas Jauk.
+
+Created by Codex Agent for conveniance
+
+Modular built by reading in multiple *.tiff files and calculate MCD contrast ratio and logging in the corresponding folder via *.csv file
+-> runs on multiple sample files in subfolder
+-> logs additionally *.txt file with metadata info
+-> have fun°\^-^/°
+
 """
 
 from __future__ import annotations

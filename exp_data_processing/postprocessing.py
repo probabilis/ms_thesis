@@ -1,13 +1,13 @@
-from env_utils import read_sim_dat_from_csv, plotting_style
-from params import labyrinth_data_params, exp_data_params, get_DataParameters
-from dataclasses import replace
-from env_utils import PATHS
-import numpy as np
-from read import read_csv
 import torch
 import json
 import matplotlib.pyplot as plt
 import pandas as pd
+
+from exp_data_processing.read import read_csv
+from utils.env_utils import PATHS
+from utils.env_utils import read_sim_dat_from_csv, plotting_style
+from params.opt_params import labyrinth_data_params, exp_data_params, get_DataParameters
+
 
 def wall_mask_from_labels(L):
     # L: bool (H,W) / either for positive u or negative u
