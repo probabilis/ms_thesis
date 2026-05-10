@@ -7,7 +7,9 @@ from env_utils import plotting_style, PATHS
 
 
 def plot_double_well(OUT_PATH):
-
+    """
+    plotting normalized double well potential
+    """
     plt.figure(figsize = (6,4) )
 
     x = torch.arange(-2, +2, 0.01)
@@ -32,7 +34,9 @@ def plot_double_well(OUT_PATH):
 
 
 def plot_nesterov_momentum_paramter(OUT_PATH):    
-    
+    """
+    plotting nesterov momentum paramter and approximation used for nesterov acceleration
+    """
     lambda_km1 = 1
     beta_k = 0
 
@@ -71,7 +75,9 @@ def plot_nesterov_momentum_paramter(OUT_PATH):
 
 
 def plot_fourier_multiplier(OUT_PATH):
-
+    """
+    plotting used fourier multiplier for dipolar interaction energy 
+    """
     th = 0.1
 
     plt.figure(figsize = (6,4) )
@@ -84,7 +90,6 @@ def plot_fourier_multiplier(OUT_PATH):
 
 
     plt.plot(x, y, linewidth = 2, label = "$\\sigma(k)$")
-    plt.grid(color = "gray")
     plt.xlabel("wavevector $k$")
     plt.ylabel("$\\sigma(k)$")
     plt.ylim(-0.1, y.max())
@@ -97,7 +102,9 @@ def plot_fourier_multiplier(OUT_PATH):
 
 
 def plot_fourier_multiplier_thickness_loop(OUT_PATH):
-
+    """
+    plotting used fourier multiplier for dipolar interaction energy over thickness regime (delta)
+    """
     plt.figure(figsize = (6,4) )
 
     th_ls = [0.1, 1.0, 10.0]
@@ -125,41 +132,40 @@ def plot_fourier_multiplier_thickness_loop(OUT_PATH):
     plt.show()
 
 
-def gradient():
 
-    N = 128
 
-    u = torch.rand((N,N))
+def plot_bloch_wall_transition_eps(OUT_PATH):
+    """
+    plotting bloch wall transition via
+    function used from condette thesis / p.27
+    """
+    
+    def profile(x, eps):
+        return torch.tanh(x / eps)
 
-    ones = torch.ones_like(u)
+    plt.figure(figsize = (6,4) )
 
-    u = u + torch.sin(ones)
+    x = torch.arange(-1,+1, 1/100)
+    
+    eps_ls = [0.01, 0.1, 0.5, 1.0]
 
-    fig, axs = plt.subplots(1,4)
+    for eps in eps_ls:
+        
+        y = profile(x, eps)
+        #plt.vlines(0, y.min()-0.1,y.max(), color = "gray")
+        #plt.hlines(0, x.min(), x.max(), color = "gray")
+        plt.plot(x, y, linewidth = 2, label = f"$\\varepsilon = {eps}$")
 
-    ux = uy = u
 
-    plt.ion()
-
-    for ii in range(100):
-        print("ii", ii)
-        ux = u - torch.roll(u, 1, 0)
-        uy = u - torch.roll(u, 1, 1)
-
-        u_grad = torch.sqrt(ux*ux + uy*uy)
-
-        axs[0].imshow(u)
-        axs[1].imshow(ux)
-        axs[2].imshow(uy)
-        axs[3].imshow(u_grad)
-
-        u = u_grad
-
-        plt.pause(1)
-
-    plt.ioff()
-    #plt.show()
-
+    plt.xlabel("$x$")
+    plt.ylabel("$m_z$")
+    plt.ylim(-1.1, 1.1)
+    
+    plt.legend()
+    plt.grid(color = "gray")
+    plt.tight_layout()
+    plt.savefig(OUT_PATH / "bloch_wall_transition.png", dpi = 300)
+    plt.show()
 
 
 
@@ -169,7 +175,8 @@ if __name__ == "__main__":
 
     plotting_style()
     
-    plot_double_well(OUT_PATH)
-    plot_nesterov_momentum_paramter(OUT_PATH)
-    plot_fourier_multiplier(OUT_PATH)
+    #plot_double_well(OUT_PATH)
+    #plot_nesterov_momentum_paramter(OUT_PATH)
+    #plot_fourier_multiplier(OUT_PATH)
     #plot_fourier_multiplier_thickness_loop(OUT_PATH)
+    plot_bloch_wall_transition_eps(OUT_PATH)
