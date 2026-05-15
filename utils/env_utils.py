@@ -5,11 +5,18 @@ import matplotlib.pyplot as plt
 from pathlib import Path 
 import pandas as pd
 
+# ---------------------------------------------------------------
+
+term_size = os.get_terminal_size() # get current terminal size for screen wide printing
+main_colormap = "managua" # main color map used
+N_ticks = 4 
 
 # ---------------------------------------------------------------
 
 class PATHS:
-
+    """
+    class for saving all Path's of the project
+    """
     _BASE = Path() / 'data'
 
     BASE_EXPDATA = _BASE / 'expdata'
@@ -27,62 +34,39 @@ class PATHS:
     PATH_EXAMPLES = _BASE / 'examples'
     PATH_THESIS = _BASE / 'thesis'
 
-    PATH_EVOLUTION = BASE_OUTPUT / 'evolution'
-
-    
+    PATH_EVOLUTION = BASE_OUTPUT / 'evolution'    
 
 # ---------------------------------------------------------------
 
-
 def plotting_style(CHANGE_FONT_SIZES = True, USE_TEX = True):
-    
+    """
+    function for unit plotting style of project
+    """
     plt.style.use('classic')
-
 
     if USE_TEX:
         
         plt.rcParams.update({
             'text.usetex': True,
             'font.family': 'serif',
-        })
-
-
+            })
 
     if CHANGE_FONT_SIZES:
-        # Set the default text font size
-        plt.rc('font', size=16)
-
-        # Set the axes title font size
-        plt.rc('axes', titlesize=16)
-
-        # Set the axes labels font size
-        plt.rc('axes', labelsize=16)
-
-        # Set the font size for x tick labels
-        plt.rc('xtick', labelsize=16)
-
-        # Set the font size for y tick labels
-        plt.rc('ytick', labelsize=16)
-
-        # Set the legend font size
-        plt.rc('legend', fontsize=18)
-
-        # Set the font size of the figure title
-        plt.rc('figure', titlesize=20)
-
+        
+        plt.rc('font', size=16) # default text font size
+        plt.rc('axes', titlesize=16) # axes title text font size 
+        plt.rc('axes', labelsize=16) # axes label text font size
+        plt.rc('xtick', labelsize=16) # font size for x tick labels
+        plt.rc('ytick', labelsize=16) # font size for y tick labels
+        plt.rc('legend', fontsize=18) # font size for legend
+        plt.rc('figure', titlesize=20) # font size of figure title
 
 # ---------------------------------------------------------------
-
-term_size = os.get_terminal_size()
-
 
 def print_bars(term_size = term_size):
     print(term_size.columns * "-")
 
-
-
-main_colormap = "managua"
-
+# ---------------------------------------------------------------
 
 class bcolors:
     """
@@ -98,16 +82,23 @@ class bcolors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
+# ---------------------------------------------------------------
 
 def get_filename(N, num_iters, gamma, epsilon, _lambda = None):
+    """
+    function for getting filename of consistent file namings
+    """
     if _lambda is not None:
         return f"N={N}_nmax={num_iters}_gamma={gamma}_eps={epsilon}_lambda={_lambda}"
     else:
         return f"N={N}_nmax={num_iters}_gamma={gamma}_eps={epsilon}"
 
+# ---------------------------------------------------------------
 
 def log_data(folder_path, u, energies, N, num_iters, gamma, epsilon, _lambda = None):
-
+    """
+    function for logging files consistently
+    """
     file_name = get_filename(N, num_iters, gamma, epsilon, _lambda)
 
     df_energies = pd.DataFrame(energies)
@@ -122,10 +113,12 @@ def log_data(folder_path, u, energies, N, num_iters, gamma, epsilon, _lambda = N
 
     print(f"Sucessfully saved data: \n {_path_1} \n {_path_2}.")
 
-
+# ---------------------------------------------------------------
 
 def log_data_history(folder_path, u, history, N, num_iters, gamma, epsilon, _lambda = None):
-
+    """
+    function for logging files consistently -> not used
+    """
     file_name = get_filename(N, num_iters, gamma, epsilon, _lambda)
 
     df_energies = pd.DataFrame(history)
@@ -140,10 +133,12 @@ def log_data_history(folder_path, u, history, N, num_iters, gamma, epsilon, _lam
 
     print(f"Sucessfully saved data: \n {_path_1} \n {_path_2}.")
 
-
+# ---------------------------------------------------------------
 
 def read_sim_dat_from_csv(folder_path, N, num_iters, gamma, epsilon, _lambda = None):
-
+    """
+    function for reading files
+    """
     file_name = get_filename(N, num_iters, gamma, epsilon, _lambda)
 
     _path_1 = folder_path / f"{file_name}_energy_data.csv"
@@ -154,62 +149,61 @@ def read_sim_dat_from_csv(folder_path, N, num_iters, gamma, epsilon, _lambda = N
 
     return df_energies, df_u
 
+# ---------------------------------------------------------------
 
+def plotting_schematic(folder_path, fig, ax1, ax2, u, energies, N, num_iters, gamma, epsilon, ii, DATA_LOG):
+    """
+    function of standard plotting schematic for optimization algos
+    """
+    plotting_style()
 
-# PLOTTING related
-
-N_ticks = 4 
-
-
-def plotting_schematic(folder_path, ax1, fig1, ax2, fig2, u, energies, N, num_iters, gamma, epsilon, ii):
     ax1.clear()
     ax2.clear()
-    #plt.rc('text', usetex=True)
-    #plt.rc('font', family='serif')
     file_name = get_filename(N, num_iters, gamma, epsilon)
 
-    ax1.imshow(u.real.cpu().numpy(), cmap='gray', extent=(0,1,0,1))
-    ax1.set_title(f"Iteration {ii}")
-    fig1.savefig(folder_path / f"{file_name}_pattern.png")
-    ax2.plot(torch.arange(0,len(energies)), energies)
-    ax2.set_yscale("log")
-    ax2.set_xscale("log")
+    ax1.imshow(u.real.cpu().numpy(), cmap=main_colormap, extent=(0,1,0,1))
+    ax2.loglog(torch.arange(1,len(energies)+1), energies)
 
-    ax2.set_title("energy evolution")
-    fig2.savefig(folder_path / f"{file_name}_energy.png")
+    fig.suptitle(f"$\\gamma = {gamma}, \\epsilon = {epsilon} / ii = {ii}$") 
+    if DATA_LOG:
+        fig.savefig(folder_path / f"{file_name}_energy.png")
 
-    return None
+# ---------------------------------------------------------------
 
-
-def plotting_schematic_eval(folder_path, ax1, fig1, ax2, fig2, u, energies, N, num_iters, gamma, epsilon, _lambda, ii):
-    
+def plotting_schematic_eval(folder_path, fig, ax1, ax2, u, energies, N, num_iters, gamma, epsilon, _lambda, ii, DATA_LOG):
+    """
+    function of standard plotting schematic for optimization algos for evaluation
+    """
     plotting_style()
     
     ax1.clear()
     ax2.clear()
-    #plt.rc('text', usetex=True)
-    #plt.rc('font', family='serif')
-    file_name = get_filename(N, num_iters, gamma, epsilon)
-    file_name = file_name + f"_lambda={_lambda}"
+    file_name = get_filename(N, num_iters, gamma, epsilon) + f"_lambda={_lambda}"
 
-    ax1.imshow(u.cpu().numpy(), cmap='gray', origin="lower", extent=(0,1,0,1))
-    ax1.set_title(f"$\\gamma$ = {gamma}, $\\epsilon$ = {epsilon}, $\\lambda$ = {_lambda:.3f} ($ii$ = {ii})")
-    fig1.savefig(folder_path / f"{file_name}_pattern.png")
-    ax2.plot(torch.arange(0,len(energies)), energies)
+    ax1.imshow(u.cpu().numpy(), cmap=main_colormap, origin="lower", extent=(0,1,0,1))
+    ax2.loglog(torch.arange(1,len(energies)+1), energies)
+    ax2.grid(color="gray")
 
-    ax2.set_title("energy evolution")
-    fig2.savefig(folder_path / f"{file_name}_energy.png")
-    #plt.close()
+    fig.suptitle(f"$\\gamma = {gamma}, \\epsilon = {epsilon}, \\lambda = {_lambda:.3f} / ii = {ii}$")   
 
-    return None
+    if DATA_LOG:
+        fig.savefig(folder_path / f"{file_name}_data_log.png")
 
+# ---------------------------------------------------------------
 
 def tensor_type(x):
+    """
+    check tensor type
+    """
     print("Is float : ",isinstance(x,torch.FloatTensor) )
     print("Is double : ", isinstance(x,torch.DoubleTensor) )
 
+# ---------------------------------------------------------------
 
 def get_args():
+    """
+    function for getting arguments for live_plot and data_log
+    """
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
@@ -222,7 +216,6 @@ def get_args():
     )
 
     return parser.parse_args()
-
 
 # --------------------------------------------------------------------
 

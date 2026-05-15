@@ -2,16 +2,17 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 from dataclasses import asdict, replace
-from gradient_descent import gradient_descent
 
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import gaussian_kde
 
-from params import labyrinth_data_params, get_DataParameters, get_SimulationParamters, gd_sim_params, sim_config
+from utils.env_utils import PATHS, print_bars, get_args, plotting_style, main_colormap
+from utils.pattern_formation import initialize_u0_random
+from params.opt_params import labyrinth_data_params, get_DataParameters, get_SimulationParamters, gd_sim_params, sim_config
 
-from env_utils import PATHS, print_bars, get_args, plotting_style
-from pattern_formation import initialize_u0_random
+from optimization.gradient_descent import gradient_descent
+
 
 # ---------------------------------------------------------------
 
@@ -36,7 +37,7 @@ def plot_pdf_heatmap(u_ls, energies, xlim=(-1.1, 1.1), n_x=200):
         aspect="auto",
         origin="lower",
         extent=[0, len(u_ls)-1, xlim[0], xlim[1]],
-        cmap = "berlin",
+        cmap = main_colormap,
     )
     #plt.colorbar(im,ax=axs[0], label=r"$p_t(u)$")
     axs[0].set_ylabel(r"$u^{(ij)}_n$")
@@ -159,7 +160,7 @@ if __name__ == "__main__":
 
         for ii, u in enumerate( u_ls[0:-1] ):
 
-            axs[2*ii].imshow(u.cpu().numpy(), cmap='managua', extent=(0,1,0,1))
+            axs[2*ii].imshow(u.cpu().numpy(), cmap=main_colormap, extent=(0,1,0,1))
             #axs[2*ii].set_box_aspect(1)
             axs[2*ii].axes.get_xaxis().set_ticks([])
             axs[2*ii].axes.get_yaxis().set_ticks([])
@@ -190,7 +191,7 @@ if __name__ == "__main__":
         fig, axs = plt.subplots(2, 2, figsize = (12,8) )
 
 
-        axs[0, 0].imshow(u_ls[-1].cpu().numpy(), cmap='managua',origin="lower", extent=(0,1,0,1) )    
+        axs[0, 0].imshow(u_ls[-1].cpu().numpy(), cmap=main_colormap,origin="lower", extent=(0,1,0,1) )    
         axs[0, 0].set_box_aspect(1)
         axs[0, 0].set_xlabel("$x$")
         axs[0, 0].set_ylabel("$y$")
@@ -200,7 +201,7 @@ if __name__ == "__main__":
         real_fftu = torch.fft.fftshift(fftu)
         real_fftu = torch.abs(real_fftu)
 
-        axs[0, 1].imshow(real_fftu, origin = "lower") # cmap = "managua"
+        axs[0, 1].imshow(real_fftu, cmap = main_colormap, origin = "lower")
         axs[0, 1].set_box_aspect(1)
         axs[0, 1].set_xlabel("$k_x$")
         axs[0, 1].set_ylabel("$k_y$")
@@ -214,13 +215,11 @@ if __name__ == "__main__":
         axs[1, 1].loglog(history["E_dw"], label="$E_{W}$")
         axs[1, 1].legend(loc = "lower right")
 
-
         for ii in range(2):
             axs[1, ii].set_xlabel("iterator $n$")
             axs[1, ii].set_ylabel("energy value $E[u_n(x,y)]$")
             axs[1, ii].grid(color = "gray")
             axs[1, ii].grid(color = "gray")
-
 
         fig.tight_layout()
         plt.savefig(FOLDER_PATH / f"domain_evolution_summary_N={N}_num-iters={num_iters_max}_gamma={gamma}.png", dpi = 300)

@@ -14,18 +14,33 @@ from optimization.crank_nicolson import adapted_crank_nicolson
 
 
 def test_autograd(FOLDER_PATH):
+    """
+    test autograd via torch gradient descent optimization method
+    """
     gradient_descent_backtracking(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, **asdict(labyrinth_data_params), num_iters=500_000, c0 = 9/32)
 
 def test_gradient_descent(FOLDER_PATH):
+    """
+    test gradient descent optimizatoin method
+    """
     gradient_descent(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, **asdict(labyrinth_data_params), **asdict(gd_sim_params))
 
 def test_gradient_descent_proximal(FOLDER_PATH):
+    """
+    test proximal gradient decsent optimization method
+    """
     gradient_descent_proximal(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH,**asdict(labyrinth_data_params),**asdict(pgd_sim_params))
 
 def test_gradient_descent_nesterov(FOLDER_PATH):
+    """
+    test nesterov gradient descent optimization method
+    """
     gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, **asdict(labyrinth_data_params),**asdict(ngd_sim_params), LAPLACE_SPECTRAL=False, ENERGY_STOP_TOL=1e-12)
 
 def test_crank_nicolson(FOLDER_PATH):
+    """
+    test adapted crank nicolson optimization method from Condette / same implementation as in paper
+    """
     adapted_crank_nicolson(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, **asdict(labyrinth_data_params), **asdict(cn_sim_params))
 
 

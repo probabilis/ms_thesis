@@ -18,9 +18,9 @@ def energy_value(gamma, epsilon, N, u, M_k, c0):
     Energy functional with spectral variant
     E = LaPlace + DW + FM 
     """
-    ftu = torch.fft.fft2(u, norm = 'ortho') #/ N**2 
+    ftu = torch.fft.fft2(u, norm = 'ortho')
 
-    E_LPFM = 0.5 * torch.sum( M_k * torch.abs(ftu)**2 )
+    E_LPFM = 0.5 * torch.sum( M_k * torch.abs(ftu)**2 ) / N**2 
     
     W = double_well_potential(u, c0)
     E_DW = (gamma / epsilon) * torch.sum(W) / N**2 
@@ -104,8 +104,7 @@ def adapted_crank_nicolson(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th
     ii = 0
 
     if LIVE_PLOT or DATA_LOG:
-        fig1, ax1 = plt.subplots(figsize = (14,12))
-        fig2, ax2 = plt.subplots(figsize = (10,10))
+        fig, (ax1,ax2) = plt.subplots(1,2,figsize = (10,8))
         plt.ion()
 
     fp_iterations = []
@@ -116,7 +115,7 @@ def adapted_crank_nicolson(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th
     try:
         while ii_updated < max_it:
 
-            if STOP_BY_TOL and energy_diff <= stop_limit: # only when STOP_BY_TOL is True, max_iterations will be cut
+            if STOP_BY_TOL and abs(energy_diff) <= stop_limit: # only when STOP_BY_TOL is True, max_iterations will be cut
                 print("Converged: ", energy_diff)
                 break
 
@@ -137,8 +136,8 @@ def adapted_crank_nicolson(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th
                 u_n = u_np1
                 ii += 1
                 
-                if LIVE_PLOT and ii % 100 == 0:
-                    plotting_schematic(FOLDER_PATH, ax1, fig1, ax2, fig2, u_n, energies, N, max_it, gamma, epsilon, ii)
+                if LIVE_PLOT and (ii % 100):
+                    plotting_schematic(FOLDER_PATH, fig, ax1, ax2, u_n, energies, N, max_it, gamma, epsilon, ii, DATA_LOG)
                     plt.pause(1)
                 
             else:
@@ -161,7 +160,7 @@ def adapted_crank_nicolson(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th
 
     if DATA_LOG:
         log_data(FOLDER_PATH, u_n, energies, N, max_it, gamma, epsilon)
-        plotting_schematic(FOLDER_PATH, ax1, fig1, ax2, fig2, u_n, energies, N, max_it, gamma, epsilon, ii)
+        plotting_schematic(FOLDER_PATH, fig, ax1, ax2, u_n, energies, N, max_it, gamma, epsilon, ii, DATA_LOG)
 
     return u_n, energies
 

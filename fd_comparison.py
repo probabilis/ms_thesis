@@ -58,6 +58,7 @@ if __name__ == "__main__":
 
             axs[ii, 1].grid(color = "gray")
             axs[ii, 1].legend()
+            print_bars()
             
         plt.savefig(FOLDER_PATH / "laplace_evaluation_comparison.png", dpi = 300)
         plt.show()

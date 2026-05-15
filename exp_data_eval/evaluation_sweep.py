@@ -6,13 +6,11 @@ import matplotlib.pyplot as plt
 from dataclasses import asdict, replace
 from pathlib import Path
 
-from pattern_formation import initialize_u0_random
-from params import exp_data_params, get_DataParameters, get_SimulationParamters
-from params import pgd_sim_params as ngd_sim_params
-from env_utils import PATHS, print_bars, plotting_style, read_sim_dat_from_csv, N_ticks
+from utils.pattern_formation import initialize_u0_random
+from utils.env_utils import PATHS, print_bars, plotting_style, read_sim_dat_from_csv, N_ticks, main_colormap
 
-from evaluation import gradient_descent_nesterov_evaluation
-from read import read_csv
+from exp_data_eval.evaluation import gradient_descent_nesterov_evaluation
+from exp_data_processing.read import read_csv
 
 # ---------------------------------------------------------------
 
@@ -25,16 +23,20 @@ def parse_args() -> argparse.Namespace:
 
 # ---------------------------------------------------------------
 
-def different_image_lambdas_and_gammas(exp_data_params, ngd_sim_params, SIMULATE_OR_READ):
+def grid_sweep_over_lambdas_and_gammas(exp_data_params, ngd_sim_params, SIMULATE_OR_READ):
+
 
     LIVE_PLOT = False
     DATA_LOG = True
     args = parse_args()
 
-
     ENERGY_STOP_TOL = 1e-12
     num_iters = 5_000
     ngd_sim_params = replace(ngd_sim_params, num_iters = num_iters, tau = 0.001) # smaller tau because of image
+
+
+    LOSS_TYPE = "MSE+k_peak"
+
 
     # ---------------------------------------------------------------
 
@@ -87,7 +89,9 @@ def different_image_lambdas_and_gammas(exp_data_params, ngd_sim_params, SIMULATE
             
             if SIMULATE_OR_READ == "simulate":
                 print("Simulating")
-                u, history = gradient_descent_nesterov_evaluation(u0, u_exp, _lambda, LIVE_PLOT, DATA_LOG, OUTPUT_PATH, **asdict(exp_data_params),**asdict(ngd_sim_params), STOP_BY_TOL=True, ENERGY_STOP_TOL = ENERGY_STOP_TOL)
+                u, history = gradient_descent_nesterov_evaluation(u0, u_exp, _lambda, LIVE_PLOT, DATA_LOG, OUTPUT_PATH, 
+                                                                  **asdict(exp_data_params),**asdict(ngd_sim_params), 
+                                                                  LOSS_TYPE=LOSS_TYPE,STOP_BY_TOL=True, ENERGY_STOP_TOL = ENERGY_STOP_TOL)
                 energies = history["E_total"]
 
             elif SIMULATE_OR_READ == "read":
@@ -97,9 +101,7 @@ def different_image_lambdas_and_gammas(exp_data_params, ngd_sim_params, SIMULATE
                 u = torch.tensor(u_sim.values)
                 
 
-            
-
-            axs[ii, 2*kk].imshow(u.cpu().numpy(), cmap='gray', origin="lower", extent=(0,1,0,1))
+            axs[ii, 2*kk].imshow(u.cpu().numpy(), cmap=main_colormap, origin="lower", extent=(0,1,0,1))
             axs[ii, 2*kk].set_box_aspect(1)
             
             axs[ii, 2*kk].set_title(f"$\\gamma = {_gamma:.5f}$")
@@ -142,5 +144,4 @@ def different_image_lambdas_and_gammas(exp_data_params, ngd_sim_params, SIMULATE
 
 
 
-if __name__ == "__main__":
-    different_image_lambdas_and_gammas(exp_data_params, ngd_sim_params, "simulate")
+

@@ -78,17 +78,17 @@ Magnetic Image mapping:
 - Check Lipshitz constant -> implement in GD for rerun + autograd check once again -> X
 - Integrate data-savings for all algorithms -> X
 - single domain evolution -> X
+- Standardize plotting schematic + LaTex Font integration (still open: axis + latex font) -> 
+- Run data01 -> X
+
 
 ### Open:
 
 - Run power law for long estimator on bigger grid
-- Multiple runs = different patterns
+- Multiple runs = different patterns with synthetic
 - ReRun asymptotic energy / check for high gamma
-- Run data00
-
-
-- Standardize plotting schematic + LaTex Font integration (still open: axis + latex font)
-- ReRun all plots for thesis
+- ReRun data01
+- Check if diff_energy with abs() and without
 
 
 

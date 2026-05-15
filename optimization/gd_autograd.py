@@ -71,25 +71,24 @@ def gradient_descent_backtracking(u, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize,
     energies = []
 
 
-    fig1, ax1 = plt.subplots(1,1)
-    fig2, ax2 = plt.subplots(1,1)
+    fig, (ax1,ax2) = plt.subplots(1,2, figsize = (10,8))
     plt.ion()
 
     try:
         # -- Gradient descent looop --
-        for n in tqdm(range(num_iters)):
+        for ii in tqdm(range(num_iters)):
             u_new, E_new, alpha_used, grad = backtracking_autograd(
                 u, 
                 lambda v: energy_tensor(v, gamma, epsilon, N, th, modk, modk2, c0, sigma_k),
                 alpha_init=1e-3,
-                beta=0.5, c=1e-4, max_back=40, verbose=(n%1000==0)
+                beta=0.5, c=1e-4, max_back=40, verbose=(ii%1000==0)
             )
             u = u_new
             E = E_new
             energies.append(E)
 
-            if LIVE_PLOT and (n % 1_000) == 0:
-                plotting_schematic(FOLDER_PATH, ax1, fig1, ax2, fig2, u, energies, N, num_iters, gamma, epsilon, n)
+            if LIVE_PLOT and (ii % 100):
+                plotting_schematic(FOLDER_PATH, fig, ax1, ax2, u, energies, N, num_iters, gamma, epsilon, ii, DATA_LOG)
                 plt.pause(1)
 
     except KeyboardInterrupt:
@@ -99,7 +98,7 @@ def gradient_descent_backtracking(u, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize,
     print(energies)
     if DATA_LOG:
         log_data(FOLDER_PATH, u, energies, N, num_iters, gamma, epsilon)
-        plotting_schematic(FOLDER_PATH, ax1, fig1, ax2, fig2, u, energies, N, num_iters, gamma, epsilon, n)
+        plotting_schematic(FOLDER_PATH, fig, ax1, ax2, u, energies, N, num_iters, gamma, epsilon, ii, DATA_LOG)
         plt.pause(1)
 
 

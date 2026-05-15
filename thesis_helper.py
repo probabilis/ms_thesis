@@ -2,8 +2,8 @@ import torch
 import matplotlib.pyplot as plt
 import math
 
-from pattern_formation import double_well_potential, fourier_multiplier
-from env_utils import plotting_style, PATHS
+from utils.pattern_formation import double_well_potential, fourier_multiplier
+from utils.env_utils import plotting_style, PATHS
 
 
 def plot_double_well(OUT_PATH):
@@ -37,6 +37,8 @@ def plot_nesterov_momentum_paramter(OUT_PATH):
     """
     plotting nesterov momentum paramter and approximation used for nesterov acceleration
     """
+    plt.figure(figsize = (6,4) )
+
     lambda_km1 = 1
     beta_k = 0
 
@@ -57,16 +59,18 @@ def plot_nesterov_momentum_paramter(OUT_PATH):
         beta_pock_ls.append(beta_k_pock)
         k_ls.append(k)
 
+    print(beta_ls)
 
     # plt.plot(k_ls, lambda_ls)
     #plt.title("Nesterov Momentum Paramter $\\beta_n$")
-    plt.plot(k_ls, beta_ls, label = "$\\beta_n(\\lambda_n)$", linewidth = 2)
-    plt.plot(k_ls, beta_pock_ls, label = "$\\beta_n = \\frac{n - 1}{n + 2}$", linewidth = 2)
+    plt.plot(k_ls, beta_ls, label = "$\\beta_k(\\lambda_k)$", linewidth = 2)
+    plt.plot(k_ls, beta_pock_ls, label = "$\\beta_k = \\frac{k - 1}{k + 2}$", linewidth = 2)
     plt.hlines(1, k_ls[0], k_ls[-1], color = "gray")
-    plt.ylim(0, 1.1)
+    #plt.ylim(0, 1.1)
+    plt.xscale("log")
     plt.grid(color = "gray")
-    plt.xlabel("iterator $n$")
-    plt.ylabel("$\\beta_n$")
+    plt.xlabel("iterator $k$")
+    plt.ylabel("$\\beta_k$")
     plt.legend(loc = "lower right")
     plt.tight_layout()
     plt.savefig(OUT_PATH / "nesterov_momentum_parameter.png", dpi = 300)
@@ -176,7 +180,7 @@ if __name__ == "__main__":
     plotting_style()
     
     #plot_double_well(OUT_PATH)
-    #plot_nesterov_momentum_paramter(OUT_PATH)
+    plot_nesterov_momentum_paramter(OUT_PATH)
     #plot_fourier_multiplier(OUT_PATH)
     #plot_fourier_multiplier_thickness_loop(OUT_PATH)
-    plot_bloch_wall_transition_eps(OUT_PATH)
+    #plot_bloch_wall_transition_eps(OUT_PATH)
