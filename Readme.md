@@ -89,6 +89,7 @@ Magnetic Image mapping:
 - ReRun asymptotic energy / check for high gamma
 - ReRun data01
 - Check if diff_energy with abs() and without
+- remove learning rate tau from params -> evaluated from lipschitz function
 
 
 

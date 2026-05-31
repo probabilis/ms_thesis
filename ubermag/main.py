@@ -2,6 +2,7 @@ import math
 import json
 import csv
 import re
+import argparse
 from dataclasses import dataclass, asdict
 from pathlib import Path
 from itertools import product
@@ -12,14 +13,13 @@ import matplotlib.pyplot as plt
 
 import discretisedfield as df
 import micromagneticmodel as mm
-import oommfc as oc
 
 
 MU0 = 4.0 * math.pi * 1e-7
 
 
 # ============================================================
-# 1) Problem definition
+# 1) Sample definition
 # ============================================================
 
 @dataclass
@@ -32,10 +32,10 @@ class SampleConfig:
     dy: float                  # mesh size y [m]
 
     # Material / known values
-    Ms: float                  # saturation magnetization [A/m]
+    Ms: float                  # saturation magnetization [A/m] / assumed
     easy_axis: Tuple[float, float, float] = (0.0, 0.0, 1.0)
 
-    # Field during imaging
+    # Field during imaging (approx. 0)
     H: Tuple[float, float, float] = (0.0, 0.0, 0.0)
 
     # Numerical
@@ -141,7 +141,7 @@ def build_system(
 # 5) Relaxation
 # ============================================================
 
-def relax_system(
+def relax_system_oommf(
     system,
     verbose: int = 2,
     max_steps: Optional[int] = None,
@@ -169,6 +169,15 @@ def relax_system(
     md.drive(system)
     return system
 
+
+def relax_system_mumax(
+    system,
+    verbose: int = 2,
+    DemagAccuracy: int = 6,
+):
+    md = mc.MinDriver(DemagAccuracy=DemagAccuracy)
+    md.drive(system)
+    return system
 
 # ============================================================
 # 6) Extract field data
@@ -349,7 +358,7 @@ def save_run_outputs(
 
 def print_parameter_summary(sample: SampleConfig, A: float, Ku: float, D: float):
     Keff = compute_keff_from_ku(sample.Ms, Ku)
-    lex = math.sqrt(2 * A / (MU0 * sample.Ms**2))
+    lex = math.sqrt(2 * A / (MU0 * sample.Ms**2)) 
     delta_eff = math.sqrt(A / max(Keff, 1e-30)) if Keff > 0 else float("inf")
 
     print("=" * 70)
@@ -380,10 +389,11 @@ def run_single_simulation(
     A: float,
     Ku: float,
     D: float = 0.0,
-    outdir: Path = Path("oommf_runs"),
+    outdir: Path = Path("test_runs"),
     system_prefix: str = "tacofebmgo",
     verbose: int = 2,
     show_plot: bool = False,
+    numerical_backend : str = "oommf"
 ):
     run_name = build_run_name(sample=sample, A=A, Ku=Ku, prefix=system_prefix)
     print_parameter_summary(sample=sample, A=A, Ku=Ku, D=D)
@@ -395,7 +405,10 @@ def run_single_simulation(
         A=A,
         D=D,
     )
-    system = relax_system(system, verbose=verbose)
+    if numerical_backend == "oommf":
+        system = relax_system_oommf(system, verbose=verbose)
+    if numerical_backend == "mumax":
+        system = relax_system_mumax(system, verbose=verbose)
 
     saved = save_run_outputs(
         system=system,
@@ -423,10 +436,11 @@ def run_parameter_grid_search(
     A_values: Iterable[float],
     Ku_values: Iterable[float],
     D: float = 0.0,
-    outdir: Path = Path("oommf_grid"),
+    outdir: Path = Path("test_grid"),
     system_prefix: str = "grid",
     verbose: int = 1,
     show_plot: bool = False,
+    numerical_backend: str = "oommf"
 ):
     """
     Loops over a grid in thickness, A, Ku.
@@ -475,6 +489,7 @@ def run_parameter_grid_search(
                 system_prefix=system_prefix,
                 verbose=verbose,
                 show_plot=show_plot,
+                numerical_backend=numerical_backend
             )
             Keff = compute_keff_from_ku(sample.Ms, Ku)
             summary_rows.append({
@@ -543,67 +558,85 @@ def run_parameter_grid_search(
 # 12) Main demo
 # ============================================================
 
+
+def get_args():
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "backend", choices=["mumax", "oommf"],
+        help="Which backend is used, either mumax or oommf."
+    )
+    return parser.parse_args()
+
+
+
 if __name__ == "__main__":
+
     base_sample = SampleConfig(
-        Lx=10e-6,
-        Ly=10e-6,
-        t=1.32e-9,
-        dx=1.0e-8, # 0.1e-7 ... 1e-8 ... 10 nm
+        Lx=20e-6,
+        Ly=20e-6,
+        t=1e-9,
+        dx=1.0e-8,
         dy=1.0e-8,
         Ms=1.20e6,
-        easy_axis=(0.0, 0.0, 1.0),
-        H=(0.0, 0.0, 0.0),
-        random_seed=3,
+        easy_axis=(0.0, 0.0, 1.0), # z- direction
+        H=(0.0, 0.0, 0.0), # no external field
+        random_seed=3, # some random seed for same re-iteration
     )
+    sys_args = get_args()
+    numerical_backend = sys_args.backend
 
-    MAIN_PATH = Path("oommf")
+    if numerical_backend == "oommf":
+        import oommfc as oc
+    elif numerical_backend == "mumax":
+        import mumax3c as mc
+    else:
+        raise ValueError("Backend not found.")
 
-    # --------------------------------------------------------
-    # Single run
-    # --------------------------------------------------------
-    SINGLE_RUN = False
-    MULTI_RUN = True
+
+    MAIN_PATH = Path(numerical_backend)
+
+    SINGLE_RUN = True
+    GRID_RUN = False
 
     if SINGLE_RUN:
-        A = 10.0e-11
-        Keff = 4.0e4
+        A = 20.0e-12
+        Keff = 40.0e3
         Ku = compute_ku_from_keff(base_sample.Ms, Keff)
         print("Ku", Ku)
         D = 0.0
-
         
         run_single_simulation(
             sample=base_sample,
             A=A,
             Ku=Ku,
             D=D,
-            outdir=MAIN_PATH / Path("oommf_single_run"),
+            outdir=MAIN_PATH / Path(f"{numerical_backend}_single_run"),
             system_prefix="tacofebmgo",
             verbose=2,
-            show_plot=False,
+            show_plot=True,
+            numerical_backend = numerical_backend
         )
-        
         exit(0)
 
-    if MULTI_RUN:
-        # --------------------------------------------------------
-        # Grid search example
-        # --------------------------------------------------------
+
+    if GRID_RUN:
         thickness_values = [1.0e-9, 1.2e-9, 1.4e-9]
-        A_values = [10.0e-12, 12.0e-12, 14.0e-12]
+        # A_values = [10.0e-12, 12.0e-12, 14.0e-12] .... oommf_grid_runs3
+        A_values = [14.0e-12, 16.0e-12, 18.0e-12] # ToDO
+
         Keff_values = [1.0e4, 2.0e4, 4.0e4]
         Ku_values = [compute_ku_from_keff(base_sample.Ms, Keff) for Keff in Keff_values]
-
-        #A_values = [x * 10 for x in A_values]        
 
         run_parameter_grid_search(
             base_sample=base_sample,
             thickness_values=thickness_values,
             A_values=A_values,
             Ku_values=Ku_values,
-            D=0.0,
-            outdir=MAIN_PATH / Path("oommf_grid_runs3"),
+            D=0.0, # no DMI interaction
+            outdir=MAIN_PATH / Path(f"{numerical_backend}_grid_runs"),
             system_prefix="grid",
             verbose=1,
             show_plot=False,
+            numerical_backend = numerical_backend
         )

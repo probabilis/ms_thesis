@@ -7,18 +7,21 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import gaussian_kde
 
-from utils.env_utils import PATHS, print_bars, get_args, plotting_style, main_colormap
+from utils.env_utils import PATHS, print_bars, get_args, plotting_style, main_colormap, sub_colormap
 from utils.pattern_formation import initialize_u0_random
 from params.opt_params import labyrinth_data_params, get_DataParameters, get_SimulationParamters, gd_sim_params, sim_config
 
 from optimization.gradient_descent import gradient_descent
 
-
 # ---------------------------------------------------------------
+"""
+script for time-evolution of plain gradient descent method with some analysis plots
+"""
+
 
 def plot_pdf_heatmap(u_ls, energies, xlim=(-1.1, 1.1), n_x=200):
 
-    fig, axs = plt.subplots(2,1, figsize=(12, 10), sharex=True)
+    fig, axs = plt.subplots(2,1, figsize=(10, 8), sharex=True)
 
     x = np.linspace(xlim[0], xlim[1], n_x)
     pdfs = []
@@ -45,9 +48,9 @@ def plot_pdf_heatmap(u_ls, energies, xlim=(-1.1, 1.1), n_x=200):
     axs[0].set_title("PDF flow during GD optimization")
 
     axs[1].set_ylabel("energy value $E[u_n(x,y)]$")
-    axs[1].plot(history["E_ex"], label="$E_{\\nabla}$")
-    axs[1].plot(history["E_demag"], label="$E_{\\mathcal{F}}$")
+    axs[1].plot(history["E_grad"], label="$E_{\\nabla}$")
     axs[1].plot(history["E_dw"], label="$E_{W}$")
+    axs[1].plot(history["E_fm"], label="$E_{\\mathcal{F}}$")
 
     axs[1].set_xlabel("iterator $n$")
 
@@ -62,7 +65,7 @@ def plot_pdf_waterfall(u_ls, NR_OF_ACCUMULATED_ITERATIONS, step=20, offset=0.25,
 
     colors = plt.cm.berlin(np.linspace(0,1,len(u_ls))) #this gets the colormap as an array of colours
 
-    plt.figure(figsize=(10, 12) )
+    plt.figure(figsize=(10, 8) )
 
     for k, u in enumerate(u_ls[::step]):
         u = np.asarray(u).ravel()
@@ -95,7 +98,6 @@ if __name__ == "__main__":
     LIVE_PLOT = False
     DATA_LOG = False
     
-
     N = 200
     num_iters_max = 1000
     gamma = 0.002
@@ -154,7 +156,7 @@ if __name__ == "__main__":
     if SUMMARY:
         u_ls, history = gradient_descent(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, **asdict(labyrinth_data_params),**asdict(gd_sim_params), **asdict(sim_config), SAVE_U_HISTORY=100)    
         
-        fig, axs = plt.subplots( 5, 4, figsize = (14,14))
+        fig, axs = plt.subplots( 5, 4, figsize = (10,10))
 
         axs = axs.ravel()
 
@@ -188,10 +190,9 @@ if __name__ == "__main__":
             plt.show()
             plt.close()
 
-        fig, axs = plt.subplots(2, 2, figsize = (12,8) )
+        fig, axs = plt.subplots(2, 2, figsize = (10,10) )
 
-
-        axs[0, 0].imshow(u_ls[-1].cpu().numpy(), cmap=main_colormap,origin="lower", extent=(0,1,0,1) )    
+        axs[0, 0].imshow(u_ls[-1].cpu().numpy(), cmap=main_colormap, origin="lower", extent=(0,1,0,1) )    
         axs[0, 0].set_box_aspect(1)
         axs[0, 0].set_xlabel("$x$")
         axs[0, 0].set_ylabel("$y$")
@@ -201,18 +202,20 @@ if __name__ == "__main__":
         real_fftu = torch.fft.fftshift(fftu)
         real_fftu = torch.abs(real_fftu)
 
-        axs[0, 1].imshow(real_fftu, cmap = main_colormap, origin = "lower")
+        axs[0, 1].imshow(real_fftu, cmap = sub_colormap, origin = "lower")
         axs[0, 1].set_box_aspect(1)
         axs[0, 1].set_xlabel("$k_x$")
         axs[0, 1].set_ylabel("$k_y$")
+
+        #axs[0, 1].set_title(rf"\\mathrm{{log}}$(1 + \\hat{{u}_{shift})$")
         axs[0, 1].set_title(rf"$\mathcal{{F}}[u_{{n={num_iters_max}}}(x,y)]$")
 
         axs[1, 0].loglog(history["E_total"], label = "$E_{total}$")
         axs[1, 0].legend(loc = "lower right")
 
-        axs[1, 1].loglog(history["E_ex"], label="$E_{\\nabla}$")
-        axs[1, 1].loglog(history["E_demag"], label="$E_{\\mathcal{F}}$")
+        axs[1, 1].loglog(history["E_grad"], label="$E_{\\nabla}$")
         axs[1, 1].loglog(history["E_dw"], label="$E_{W}$")
+        axs[1, 1].loglog(history["E_fm"], label="$E_{\\mathcal{F}}$")
         axs[1, 1].legend(loc = "lower right")
 
         for ii in range(2):

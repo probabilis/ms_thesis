@@ -87,7 +87,7 @@ def gradient_descent_backtracking(u, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize,
             E = E_new
             energies.append(E)
 
-            if LIVE_PLOT and (ii % 100):
+            if LIVE_PLOT and (ii % 100) == 0:
                 plotting_schematic(FOLDER_PATH, fig, ax1, ax2, u, energies, N, num_iters, gamma, epsilon, ii, DATA_LOG)
                 plt.pause(1)
 

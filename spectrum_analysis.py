@@ -3,13 +3,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 from dataclasses import asdict, replace
 
-from utils.env_utils import PATHS, print_bars, plotting_style, log_data, term_size, main_colormap
+from utils.env_utils import PATHS, print_bars, plotting_style, log_data, term_size, main_colormap, sub_colormap
 from utils.pattern_formation import initialize_u0_random
 
 from params.opt_params import labyrinth_data_params, get_DataParameters, get_SimulationParamters, sim_config
 from params.opt_params import pgd_sim_params as ngd_sim_params
 from params.lipschitz import evaluate_lipschitz_constant
 from optimization.gd_nesterov import gradient_descent_nesterov
+
+
 
 
 
@@ -23,37 +25,9 @@ def radial_wavelength_spectrum(
     plot: bool = False,
 ):
     """
-    Compute radial average of a 2D FFT spectrum and convert frequency to wavelength.
-
-    Parameters
-    ----------
-    u : torch.Tensor
-        2D input image, shape (Nx, Ny).
-    dx : float
-        Pixel size in real space. If your image width is L and Nx pixels, then dx = L / Nx.
-    use_power : bool
-        If True, use |F|^2. Otherwise use |F|.
-    nbins : int or None
-        Number of radial bins. If None, uses min(Nx, Ny)//2.
-    remove_mean : bool
-        If True, subtract the image mean before FFT.
-    eps : float
-        Small number to avoid division by zero.
-    plot : bool
-        If True, create diagnostic plots.
-
-    Returns
-    -------
-    results : dict
-        Dictionary with:
-        - "k": radial spatial frequency
-        - "wavelength": 1 / k
-        - "profile": radial averaged spectrum
-        - "k_peak": peak radial frequency (excluding zero mode)
-        - "wavelength_peak": corresponding characteristic wavelength
-        - "Fshift": shifted FFT
-        - "S": shifted magnitude/power spectrum
+    Compute radial average of a 2D FFT spectrum and convert frequency to wavelength
     """
+
     if u.ndim != 2:
         raise ValueError("u must be a 2D tensor")
 
@@ -64,9 +38,8 @@ def radial_wavelength_spectrum(
     if remove_mean:
         u = u - u.mean()
 
-    # 2D FFT
-    F = torch.fft.fft2(u, norm="ortho")
-    Fshift = torch.fft.fftshift(F)
+    ftu = torch.fft.fft2(u, norm="ortho")
+    Fshift = torch.fft.fftshift(ftu)
 
     # Spectrum
     if use_power:
@@ -126,43 +99,14 @@ def radial_wavelength_spectrum(
         "S": S.cpu(),
     }
 
+
     if plot:
-        fig, axes = plt.subplots(1, 3, figsize=(16, 4))
-
-        im0 = axes[0].imshow(u.cpu(), cmap=main_colormap, origin="lower")
-        axes[0].set_title("Input image")
-        plt.colorbar(im0, ax=axes[0], fraction=0.046, pad=0.04)
-
-        im1 = axes[1].imshow(torch.log1p(S).cpu(), cmap="magma", origin="lower")
-        axes[1].set_title("log(1 + shifted FFT spectrum)")
-        plt.colorbar(im1, ax=axes[1], fraction=0.046, pad=0.04)
-
-        axes[2].plot(k_centers.cpu(), profile.cpu(), lw=2)
-        axes[2].axvline(k_peak, linestyle="--", label=f"peak k = {k_peak:.4g}")
-        axes[2].set_xlabel("Radial spatial frequency $k$ [cycles / unit length]")
-        axes[2].set_ylabel("Radial mean intensity")
-        axes[2].set_title(fr"Characteristic wavelength $\\approx$ {wavelength_peak:.4g}")
-        axes[2].legend()
-        axes[2].grid(True, alpha=0.3)
-
-        plt.tight_layout()
-        plt.show()
-
-        # Optional: wavelength plot
-        finite = torch.isfinite(wavelength) & (counts.cpu() > 0)
-        plt.figure(figsize=(6, 4))
-        plt.plot(wavelength[finite], profile.cpu()[finite], lw=2)
-        plt.axvline(wavelength_peak, linestyle="--",
-                    label=fr"peak $\\lambda$  = {wavelength_peak:.4g}")
-        plt.xlabel(fr"Wavelength $\\lambda$ [unit length]")
-        plt.ylabel("Radial mean intensity")
-        plt.title("Spectrum vs wavelength")
-        plt.grid(True, alpha=0.3)
-        plt.legend()
-        plt.tight_layout()
-        plt.show()
+        pass
 
     return results
+
+
+
 
 
 if __name__ == "__main__":
@@ -176,54 +120,86 @@ if __name__ == "__main__":
     gridsize, N, th, epsilon, gamma = get_DataParameters(labyrinth_data_params)
     N = 100
 
-    PLOT = False
+    ngd_sim_params = replace(ngd_sim_params, num_iters = 10_000, tau = evaluate_lipschitz_constant(gamma, epsilon, N, gridsize) )
+    labyrinth_data_params = replace(labyrinth_data_params, N = N, gamma = 0.002)
 
-    ngd_sim_params = replace(ngd_sim_params, num_iters = 5_000)
-    
     print_bars()
     print(labyrinth_data_params)
     print(ngd_sim_params)
     print(sim_config)
     print_bars()
 
-    gamma_ls = np.linspace(0.02, 0.0003, 20)
+    u0 = initialize_u0_random(N, REAL = True)
 
-    N_est = 1
-    frequencies = torch.zeros(N_est, len(gamma_ls))
+    u, energies = gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, **asdict(labyrinth_data_params), **asdict(ngd_sim_params), **asdict(sim_config))
+    results = radial_wavelength_spectrum(u, gridsize/N)
+    num_iters_max = len(energies)
 
-    for ii in range(N_est):
-        values = []
-        for gamma in gamma_ls:
-            print(term_size.columns * "-")
-            print("gamma:", gamma)
-            
-            eta = evaluate_lipschitz_constant(gamma, epsilon, N, gridsize)  
-            u0 = initialize_u0_random(N, REAL = True)
+    SINGLE_RUN = True
+    FREQUENCY_SWEEP = False
 
-            labyrinth_data_params = replace(labyrinth_data_params, N = N, gamma = gamma)
-            ngd_sim_params = replace(ngd_sim_params, tau = eta)
-            
-            u, energies = gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, **asdict(labyrinth_data_params), **asdict(ngd_sim_params), **asdict(sim_config))
-            #u_hat = torch.fft.fftshift(torch.fft.fft2(u))
-            
-            results = radial_wavelength_spectrum(u, gridsize/N, plot = True)
-            #print(results)
-            
-            print(f"Pattern frequency [cycles per unit length]: {results["k_peak"]}, wavelength [unit length]: {results["wavelength_peak"]}")
-            values.append(results["k_peak"])
+    if SINGLE_RUN:
+        fig, axs = plt.subplots(1, 3, figsize = (10,6))
+        im0 = axs[0].imshow(u.cpu(), cmap=main_colormap, origin="lower", extent=(0,1,0,1) )
+        axs[0].set_title(rf"$u_{{n={num_iters_max}}}(x,y)$")
+        plt.colorbar(im0, ax=axs[0], fraction=0.046, pad=0.04)
+        im1 = axs[1].imshow(torch.log1p(results["S"]).cpu(), cmap=sub_colormap, origin="lower", extent=(-N//2,N//2,-N//2,N//2)) # 
+        axs[1].set_title("$\\mathrm{log}(1 + \\hat{u}^{shift}_n)$")
+        #axs[1].set_title(rf"$\mathcal{{F}}[u_{{n={num_iters_max}}}(x,y)]$")
+        plt.colorbar(im1, ax=axs[1], fraction=0.046, pad=0.04)
 
-        frequencies[ii] = torch.tensor(values)
+        axs[2].loglog(results["k"], results["profile"], lw=2)
+        k_peak = results["k_peak"]
+        wavelength_peak = results["wavelength_peak"]
 
-
-    mean_frequencies = torch.mean(frequencies, dim = 0)
-
-    SPECTRUM = True
-    if SPECTRUM:
-        plt.figure() 
-        plt.title("Characteristic Radial spatial frequency $k$ [cycles / unit length] of spectrum")
-        plt.xlabel(r"Gamma $\\gamma$")
-        plt.ylabel("Radial spatial frequency $k$ [cycles / unit length]")
-        plt.plot(gamma_ls, values)
-        plt.grid(color = "gray")
-        plt.savefig(FOLDER_PATH / "fourier_frequencies.png", dpi = 300)     
+        axs[2].axvline(k_peak, linestyle="--", label=f"$k^* \\approx {k_peak:.3g}$")
+        axs[2].set_xlabel("$k$")
+        axs[2].set_ylabel("Radial mean intensity")
+        
+        #axs[2].set_title(f"$\\lambda^* \\approx {wavelength_peak:.3g}$")
+        #axs[2].set_xscale("log")
+        axs[2].legend(loc = "lower left")
+        axs[2].grid("gray")
+        plt.tight_layout()
+        plt.savefig(FOLDER_PATH / "spectrum_analysis.png", dpi = 300)
         plt.show()
+
+
+    if FREQUENCY_SWEEP:
+        gamma_ls = np.linspace(0.02, 0.0003, 20)
+
+        N_est = 1
+        frequencies = torch.zeros(N_est, len(gamma_ls))
+
+        for ii in range(N_est):
+            values = []
+            for gamma in gamma_ls:
+                print(term_size.columns * "-")
+                print("gamma:", gamma)
+                
+                eta = evaluate_lipschitz_constant(gamma, epsilon, N, gridsize)  
+                u0 = initialize_u0_random(N, REAL = True)
+
+                labyrinth_data_params = replace(labyrinth_data_params, N = N, gamma = gamma)
+                ngd_sim_params = replace(ngd_sim_params, tau = eta)
+                
+                u, energies = gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, **asdict(labyrinth_data_params), **asdict(ngd_sim_params), **asdict(sim_config))
+                results = radial_wavelength_spectrum(u, gridsize/N)
+                num_iters_max = len(energies)
+
+                print(f"Pattern frequency [cycles per unit length]: {results["k_peak"]}, wavelength [unit length]: {results["wavelength_peak"]}")
+                values.append(results["k_peak"])
+
+            frequencies[ii] = torch.tensor(values)
+
+        mean_frequencies = torch.mean(frequencies, dim = 0)
+
+        if len(gamma_ls) > 1:
+            plt.figure() 
+            plt.title("Characteristic Radial spatial frequency $k$ [cycles / unit length] of spectrum")
+            plt.xlabel(r"Gamma $\\gamma$")
+            plt.ylabel("Radial spatial frequency $k$ [cycles / unit length]")
+            plt.plot(gamma_ls, values)
+            plt.grid(color = "gray")
+            plt.savefig(FOLDER_PATH / "fourier_frequencies.png", dpi = 300)     
+            plt.show()

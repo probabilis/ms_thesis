@@ -7,19 +7,10 @@ from dataclasses import asdict, replace
 from pathlib import Path
 
 from utils.pattern_formation import initialize_u0_random
-from utils.env_utils import PATHS, print_bars, plotting_style, read_sim_dat_from_csv, N_ticks, main_colormap
+from utils.env_utils import PATHS, print_bars, plotting_style, read_sim_dat_from_csv,parse_args_exp_data, N_ticks, main_colormap
 
 from exp_data_eval.evaluation import gradient_descent_nesterov_evaluation
 from exp_data_processing.read import read_csv
-
-# ---------------------------------------------------------------
-
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Evaluating multiple RCP / LCP datastacks from experimental Magnetic Imaging.")
-    parser.add_argument("--dataset", required=True, type=str, help="Folder containing LCP *.TIF and *.DAT files.")
-    parser.add_argument("--recording", required=True, type=str, help="Recorded slices.")
-    
-    return parser.parse_args()
 
 # ---------------------------------------------------------------
 
@@ -28,15 +19,14 @@ def grid_sweep_over_lambdas_and_gammas(exp_data_params, ngd_sim_params, SIMULATE
 
     LIVE_PLOT = False
     DATA_LOG = True
-    args = parse_args()
+    args = parse_args_exp_data()
 
     ENERGY_STOP_TOL = 1e-12
     num_iters = 5_000
-    ngd_sim_params = replace(ngd_sim_params, num_iters = num_iters, tau = 0.001) # smaller tau because of image
+    ngd_sim_params = replace(ngd_sim_params, num_iters = num_iters, tau = 0.001) # smaller learning rate because of image
 
 
-    LOSS_TYPE = "MSE+k_peak"
-
+    LOSS_TYPE = "MSE"
 
     # ---------------------------------------------------------------
 

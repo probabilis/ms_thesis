@@ -32,7 +32,6 @@ class CN_SimulationParameters:
     stop_limit: float
     c0 : float
 
-
 @dataclass
 class PGD_SimulationParameters:
     tau : float
@@ -118,11 +117,12 @@ alpha = 0.1 # ~0.35 save learning rate for the simulation / see ~/lipschitz.py
 
 # PGD + Nesterov sim params
 pgd_sim_params = PGD_SimulationParameters(
-tau = 0.1,              # proximal gradient step size
+tau = 0.1,              # gradient step size -> will be overwritten by lipschitz_evaluate() -> ToDo: remove it here
 num_iters = 50_000,     # total iterations
 prox_newton_iters = 20,  # iterations for prox Newton
 tol_newton = 1e-8,       # stop tol inside prox
-c0 = 9/32)
+c0 = 9/32)              # double well constant 
+
 
 # ----------------------------------------- #
 

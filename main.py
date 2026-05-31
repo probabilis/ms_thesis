@@ -52,7 +52,7 @@ if __name__ == "__main__":
     plotting_style()
     
     LIVE_PLOT = True
-    DATA_LOG = True
+    DATA_LOG = False
     #args = get_args()
     #LIVE_PLOT = args.live_plot
     #DATA_LOG = args.data_log
@@ -69,9 +69,12 @@ if __name__ == "__main__":
     """
     todo: implement lipschitz constant as parameter return for dataclass
     """
-    #test_crank_nicolson(FOLDER_PATH = PATHS.PATH_CN)
+
+    labyrinth_data_params = replace(labyrinth_data_params, gamma = 100.0)
+
+    test_crank_nicolson(FOLDER_PATH = PATHS.PATH_CN)
     #test_autograd()
-    test_gradient_descent(FOLDER_PATH = PATHS.PATH_GD)
+    #test_gradient_descent(FOLDER_PATH = PATHS.PATH_GD)
     #test_gradient_descent_proximal(FOLDER_PATH = PATHS.PATH_PGD)
     #test_gradient_descent_nesterov(FOLDER_PATH = PATHS.PATH_NEST)
 

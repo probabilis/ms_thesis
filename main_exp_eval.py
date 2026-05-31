@@ -5,7 +5,7 @@ from utils.env_utils import PATHS, print_bars, get_args, plotting_style
 from exp_data_processing.read import read_csv
 
 from params.opt_params import exp_data_params, get_DataParameters, get_SimulationParamters
-from params.opt_params import pgd_sim_params as ngd_sim_paramss
+from params.opt_params import pgd_sim_params as ngd_sim_params
 
 from utils.pattern_formation import initialize_u0_random
 
@@ -13,7 +13,7 @@ from exp_data_eval.evaluation import gradient_descent_nesterov_evaluation
 from exp_data_eval.evaluation_sweep import grid_sweep_over_lambdas_and_gammas
 
 
-def main_single_paramter_constellation(exp_data_params, ngd_sim_params):
+def main_single_paramter_constellation(exp_data_params, ngd_sim_params, dataset, recording):
 
     plotting_style()
     
@@ -25,9 +25,6 @@ def main_single_paramter_constellation(exp_data_params, ngd_sim_params):
     DATA_LOG = args.data_log
 
     # ---------------------------------------------------------------
-
-    dataset = "data_01"
-    recording = "001"
 
     INPUT_FILE_PATH = PATHS.BASE_EXPDATA / f"{dataset}/csv/mcd_slice_{recording}.csv"
     print(f"Reading {INPUT_FILE_PATH} as experimental image data.")
@@ -106,13 +103,11 @@ def main_single_paramter_constellation(exp_data_params, ngd_sim_params):
     plt.show()
 
 
-def main_evulation_sweep(exp_data_params, ngd_sim_params):
+def main_evaluation_sweep(exp_data_params, ngd_sim_params):
     grid_sweep_over_lambdas_and_gammas(exp_data_params, ngd_sim_params, "simulate")
 
 
 if __name__ == "__main__":
 
-
-    #main_evulation_sweep()
-
-    main_single_paramter_constellation(exp_data_params, ngd_sim_paramss)
+    #main_single_paramter_constellation(exp_data_params, ngd_sim_params, dataset = "data_01", recording = "001")
+    main_evaluation_sweep(exp_data_params, ngd_sim_params)

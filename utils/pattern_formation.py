@@ -147,7 +147,7 @@ def initialize_u0_random(N, REAL = True):
     """
     intialize a quadratic grid with uniform sampled values between [-1,+1]
     """
-    amplitude = 10.0
+    amplitude = 1.0
     if REAL:
         u0 = amplitude * (2 * torch.rand(N, N, dtype=dtype_real, device=device) - 1) 
     else:
@@ -271,16 +271,16 @@ def energy_value(gamma, epsilon, N, u, c0, sigma_k, modk2, RETURN_SEPERATE = Fal
     Energy functional with spectral variant
     E = LaPlace + DW + FM 
     """
-    ftu = torch.fft.fft2(u, norm = 'ortho') / (N**2) # I used here additional normalization by 1/N**2, otherwise energy does not converge..
+    ftu = torch.fft.fft2(u, norm = 'ortho')
 
-    E_FM = 0.5 * torch.sum( sigma_k * torch.abs(ftu)**2 ) 
+    E_FM = 0.5 * torch.sum( sigma_k * torch.abs(ftu)**2 ) / N**2 # normalized FM energy
 
-    # Condette used this definition of the Gradient term in the discrete energy evaluation, in my opinion this is wrong but idk
-    # energy value results in the value due to absolute different in Gradient / LaPlace
-    #E_LP = 0.5 * torch.sum( gamma * epsilon * modk2 * torch.abs(ftu)**2 ) / (N**2) # normalized # (2 * torch.pi)**2
-
-    ux, uy = grad_fd_pbc(u, 1/N)
-    E_GRAD = 0.5 * (gamma * epsilon) * torch.sum(ux*ux + uy*uy) / (N**2) # normalized
+    # Condette used the definition of the laplace term in the discrete energy evaluation
+    # both methods work, in my opinion we should use the gradient term but the spectral laplce also does its job in this case
+    E_LP = 0.5 * torch.sum( gamma * epsilon * (2 * torch.pi)**2 * modk2 * torch.abs(ftu)**2 ) / (N**2) # normalized
+    E_GRAD = E_LP # commented above the reason behind it, otherwise use the blank E_GRAD
+    #ux, uy = grad_fd_pbc(u, 1/N)
+    #E_GRAD = 0.5 * (gamma * epsilon) * torch.sum(ux*ux + uy*uy) / (N**2) # normalized
 
     W = double_well_potential(u, c0)
     E_DW = (gamma / epsilon) * torch.sum(W) / (N**2) # normalized

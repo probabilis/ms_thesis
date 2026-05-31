@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from utils.env_utils import plotting_schematic, log_data
 from utils.pattern_formation import prox_h, fourier_multiplier, energy_value, energy_value_fd,grad_g, grad_fd, define_spaces, dtype_real, device
 
-
+from params.lipschitz import evaluate_lipschitz_constant
 
 def gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamma, epsilon, tau, c0, num_iters, prox_newton_iters, tol_newton, LAPLACE_SPECTRAL = False, STOP_BY_TOL = True, ENERGY_STOP_TOL = 1e-10, PBC = True):
     """
@@ -16,6 +16,9 @@ def gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N,
     x, k, modk, modk2 = define_spaces(gridsize, N)
     
     print("LaPlace Spectral Calculation: ", LAPLACE_SPECTRAL)
+    tau = evaluate_lipschitz_constant(gamma, epsilon, N, gridsize)
+    tau = tau / 2 # safe
+    print(f"Calculated lipschitz constant for system configuration: {tau:.3f}")
 
     sigma_k = fourier_multiplier(th * modk).to(dtype_real).to(device)
     M_k = sigma_k + gamma * epsilon * modk2 * (2*torch.pi)**2  # M_k for spectral calculation of LAPLACE
@@ -66,7 +69,7 @@ def gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N,
             energy_diff = energies[-1] - E_TOTAL
             energies.append(E_TOTAL)
 
-            if LIVE_PLOT and (ii % 100):
+            if LIVE_PLOT and (ii % 100) == 0:
                 plotting_schematic(FOLDER_PATH, fig, ax1, ax2, u_curr, energies, N, num_iters, gamma, epsilon, ii, DATA_LOG)
                 plt.pause(1)
 

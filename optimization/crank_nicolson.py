@@ -136,7 +136,7 @@ def adapted_crank_nicolson(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th
                 u_n = u_np1
                 ii += 1
                 
-                if LIVE_PLOT and (ii % 100):
+                if LIVE_PLOT and (ii % 100) == 0:
                     plotting_schematic(FOLDER_PATH, fig, ax1, ax2, u_n, energies, N, max_it, gamma, epsilon, ii, DATA_LOG)
                     plt.pause(1)
                 

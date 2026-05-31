@@ -1,15 +1,42 @@
 import os
 import argparse
+import numpy as np
 import torch
 import matplotlib.pyplot as plt
 from pathlib import Path 
 import pandas as pd
+from matplotlib.colors import LinearSegmentedColormap
 
 # ---------------------------------------------------------------
 
 term_size = os.get_terminal_size() # get current terminal size for screen wide printing
 main_colormap = "managua" # main color map used
 N_ticks = 4 
+
+def adapt_managua_low_white(n=256, transition=0.18):
+    """
+    modified managua colormap for FFT plot (for low values white)
+    """
+    base = plt.colormaps["managua"]
+
+    colors = base(np.linspace(0, 1, n))
+    k = int(n * transition)
+    orange = colors[k].copy()
+    white = np.array([1.0, 1.0, 1.0, 1.0])
+
+    for i in range(k):
+        t = i / max(k - 1, 1)
+        colors[i] = (1 - t) * white + t * orange
+
+    return LinearSegmentedColormap.from_list(
+        "managua_white_low",
+        colors,
+        N=n
+    )
+
+
+sub_colormap = adapt_managua_low_white(transition=0.2)
+
 
 # ---------------------------------------------------------------
 
@@ -30,9 +57,10 @@ class PATHS:
     PATH_COMPARISON = BASE_OUTPUT / 'comparison'
     PATH_EVALUATION = BASE_OUTPUT / 'evaluation'
     PATH_PARAMS_STUDY = BASE_OUTPUT / 'params_study'
+    PATH_GAMMA_SWEEP = BASE_OUTPUT / 'gamma_sweep'
 
     PATH_EXAMPLES = _BASE / 'examples'
-    PATH_THESIS = _BASE / 'thesis'
+    PATH_THESIS = _BASE / 'thesis_helper'
 
     PATH_EVOLUTION = BASE_OUTPUT / 'evolution'    
 
@@ -48,7 +76,7 @@ def plotting_style(CHANGE_FONT_SIZES = True, USE_TEX = True):
         
         plt.rcParams.update({
             'text.usetex': True,
-            'font.family': 'serif',
+            'font.family': 'serif'
             })
 
     if CHANGE_FONT_SIZES:
@@ -60,7 +88,6 @@ def plotting_style(CHANGE_FONT_SIZES = True, USE_TEX = True):
         plt.rc('ytick', labelsize=16) # font size for y tick labels
         plt.rc('legend', fontsize=18) # font size for legend
         plt.rc('figure', titlesize=20) # font size of figure title
-
 # ---------------------------------------------------------------
 
 def print_bars(term_size = term_size):
@@ -220,3 +247,9 @@ def get_args():
 # --------------------------------------------------------------------
 
 
+def parse_args_exp_data() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Evaluating multiple RCP / LCP datastacks from experimental Magnetic Imaging.")
+    parser.add_argument("--dataset", required=True, type=str, help="Folder containing LCP *.TIF and *.DAT files.")
+    parser.add_argument("--recording", required=True, type=str, help="Recorded slices.")
+    
+    return parser.parse_args()

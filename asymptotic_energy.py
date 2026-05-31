@@ -41,9 +41,11 @@ if __name__ == "__main__":
 
     N_est = 1
 
-    gamma_ls = np.linspace(1, 0, 50)
-    #gamma_ls = np.array([1/500, 1/800, 1/1000, 1/1500, 1/2000, 1/3000, 1/4000, 1/5000, 1/8000, 1/12000])
+    #gamma_ls = np.linspace(1, 0, 10)
+    gamma_ls = np.array([1/500, 1/800, 1/1000, 1/1500, 1/2000, 1/3000, 1/4000, 1/5000, 1/8000, 1/12000])
     energies_ls = []
+
+    u0 = initialize_u0_random(N, REAL = True)
 
     for ii in range(N_est):
         for gamma in gamma_ls:
@@ -52,8 +54,6 @@ if __name__ == "__main__":
 
             eta = evaluate_lipschitz_constant(gamma, epsilon, N, gridsize)
             print("eta", eta)
-
-            u0 = initialize_u0_random(N, REAL = True)
 
             labyrinth_data_params = replace(labyrinth_data_params, gamma = gamma)
             ngd_sim_params = replace(ngd_sim_params, tau = eta)
@@ -70,11 +70,21 @@ if __name__ == "__main__":
         """
         return gamma**(1/2)
 
-    plt.loglog(gamma_ls, energies_ls, label = "exp.")
-    plt.loglog(gamma_ls, algebraic_scaling(gamma_ls), linestyle = "--", label = "theor.")
-    plt.xlabel("$\\gamma$ / 1")
-    plt.ylabel("energy $E[ii-1]$ / 1")
 
+    plt.figure(figsize = (8,6))
+
+    print(gamma_ls)
+    print(energies_ls)
+
+    plt.scatter(gamma_ls, energies_ls, label = "simul.")
+    plt.plot(gamma_ls, algebraic_scaling(gamma_ls), linestyle = "--", label = "theor.")
+
+    plt.xlabel("$\\gamma$")
+    plt.ylabel("$E_\\mathrm{last}$")
+    
+    #plt.yscale("log")
+    
+    #plt.ylim(np.min(energies_ls)-1e-1,np.max(energies_ls)+1e+1)
 
     plt.grid(color = "gray")
     plt.legend(loc = "lower right")
