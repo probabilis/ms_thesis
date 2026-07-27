@@ -26,9 +26,9 @@ def main_single_paramter_constellation(exp_data_params, ngd_sim_params, dataset,
 
     # ---------------------------------------------------------------
 
-    INPUT_FILE_PATH = PATHS.BASE_EXPDATA / f"{dataset}/csv/mcd_slice_{recording}.csv"
-    print(f"Reading {INPUT_FILE_PATH} as experimental image data.")
-    u_exp = read_csv(INPUT_FILE_PATH, PLOT = True)
+    #INPUT_FILE_PATH = PATHS.BASE_EXPDATA / f"{dataset}/csv/mcd_slice_{recording}.csv"
+    #print(f"Reading {INPUT_FILE_PATH} as experimental image data.") # moved into read_csv method
+    u_exp = read_csv(INPUT_PATH / f"{dataset}" / "csv", recording ,PLOT = True)
 
     if u_exp.shape[0] != u_exp.shape[1]:
         raise ValueError("Experimental data should be quadratic (NxN tensor).")
@@ -103,11 +103,11 @@ def main_single_paramter_constellation(exp_data_params, ngd_sim_params, dataset,
     plt.show()
 
 
-def main_evaluation_sweep(exp_data_params, ngd_sim_params):
-    grid_sweep_over_lambdas_and_gammas(exp_data_params, ngd_sim_params, "simulate")
+def main_evaluation_sweep(exp_data_params, ngd_sim_params, SIMULATE_OR_READ = "simulate"):
+    grid_sweep_over_lambdas_and_gammas(exp_data_params, ngd_sim_params, SIMULATE_OR_READ)
 
 
 if __name__ == "__main__":
 
     #main_single_paramter_constellation(exp_data_params, ngd_sim_params, dataset = "data_01", recording = "001")
-    main_evaluation_sweep(exp_data_params, ngd_sim_params)
+    main_evaluation_sweep(exp_data_params, ngd_sim_params, SIMULATE_OR_READ = "read")

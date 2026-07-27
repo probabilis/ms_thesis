@@ -1,4 +1,5 @@
 import math
+import time
 import json
 import csv
 import re
@@ -397,18 +398,28 @@ def run_single_simulation(
 ):
     run_name = build_run_name(sample=sample, A=A, Ku=Ku, prefix=system_prefix)
     print_parameter_summary(sample=sample, A=A, Ku=Ku, D=D)
-    print(f"Starting minimization: {run_name}")
+    print(f"Starting minimization: {run_name} with backend: {numerical_backend}")
+
+    t0 = time.perf_counter()
 
     system = build_system(
         sample=sample,
         Ku=Ku,
         A=A,
         D=D,
+        system_name=f"{numerical_backend}_{system_prefix}"
     )
+
+    t1 = time.perf_counter()
+    print(f"Build system: {t1 - t0:.2f} s")
+
     if numerical_backend == "oommf":
         system = relax_system_oommf(system, verbose=verbose)
     if numerical_backend == "mumax":
         system = relax_system_mumax(system, verbose=verbose)
+
+    t2 = time.perf_counter()
+    print(f"Relaxation:   {t2 - t1:.2f} s")
 
     saved = save_run_outputs(
         system=system,
@@ -419,6 +430,10 @@ def run_single_simulation(
         outdir=outdir,
         show_plot=show_plot,
     )
+
+    t3 = time.perf_counter()
+    print(f"Saving:       {t3 - t2:.2f} s")
+    print(f"Total:        {t3 - t0:.2f} s")
 
     print(f"Saved CSV:  {saved['csv_path']}")
     print(f"Saved JSON: {saved['json_path']}")
@@ -573,11 +588,11 @@ def get_args():
 if __name__ == "__main__":
 
     base_sample = SampleConfig(
-        Lx=20e-6,
-        Ly=20e-6,
+        Lx=10e-6,
+        Ly=10e-6,
         t=1e-9,
-        dx=1.0e-8,
-        dy=1.0e-8,
+        dx=5.0e-9,
+        dy=5.0e-9,
         Ms=1.20e6,
         easy_axis=(0.0, 0.0, 1.0), # z- direction
         H=(0.0, 0.0, 0.0), # no external field
@@ -597,11 +612,11 @@ if __name__ == "__main__":
     MAIN_PATH = Path(numerical_backend)
 
     SINGLE_RUN = True
-    GRID_RUN = False
+    GRID_RUN = True
 
     if SINGLE_RUN:
-        A = 20.0e-12
-        Keff = 40.0e3
+        A = 18.0e-12
+        Keff = 60.0e3
         Ku = compute_ku_from_keff(base_sample.Ms, Keff)
         print("Ku", Ku)
         D = 0.0
@@ -621,11 +636,10 @@ if __name__ == "__main__":
 
 
     if GRID_RUN:
-        thickness_values = [1.0e-9, 1.2e-9, 1.4e-9]
-        # A_values = [10.0e-12, 12.0e-12, 14.0e-12] .... oommf_grid_runs3
-        A_values = [14.0e-12, 16.0e-12, 18.0e-12] # ToDO
+        thickness_values = [1.0e-9, 1.2e-9, 1.4e-9] # [m]
+        A_values = [10.0e-12, 12.0e-12, 18.0e-12] # [J/m]
+        Keff_values = [1.0e4, 4.0e4, 8.0e4] # [J/m^3]
 
-        Keff_values = [1.0e4, 2.0e4, 4.0e4]
         Ku_values = [compute_ku_from_keff(base_sample.Ms, Keff) for Keff in Keff_values]
 
         run_parameter_grid_search(

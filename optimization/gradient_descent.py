@@ -85,9 +85,11 @@ def gradient_descent(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamm
             if STOP_BY_TOL and abs(energy_diff) < ENERGY_STOP_TOL:
                 print("dE[ii-1,ii]", energy_diff )
                 break
-    
+                
     except KeyboardInterrupt:
         print("Exit.")  
+
+    print("dE[ii-1,ii]", energy_diff )
 
     plt.ioff()
 

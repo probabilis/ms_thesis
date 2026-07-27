@@ -31,16 +31,32 @@ def convergence_comparison(WITH_CN_AS_REFERENCE = False):
                 energies_cn.append(energies)
                 print_bars()
 
-    _, energies_gd = gradient_descent(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamma, epsilon, c0, alpha, num_iters, LAPLACE_SPECTRAL=False, STOP_BY_TOL = STOP_BY_TOL)
+    u_gd, energies_gd = gradient_descent(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamma, epsilon, c0, alpha, num_iters, LAPLACE_SPECTRAL=False, STOP_BY_TOL = STOP_BY_TOL)
     print_bars()
-    _, energies_prox = gradient_descent_proximal(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamma, epsilon, tau, c0, num_iters, prox_newton_iters, tol_newton, STOP_BY_TOL)
+    u_prox, energies_prox = gradient_descent_proximal(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamma, epsilon, tau, c0, num_iters, prox_newton_iters, tol_newton, STOP_BY_TOL)
     print_bars()
-    _, energies_nest = gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamma, epsilon, tau, c0, num_iters, prox_newton_iters, tol_newton, LAPLACE_SPECTRAL=False, STOP_BY_TOL = STOP_BY_TOL)
+    u_nest, energies_nest = gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, gridsize, N, th, gamma, epsilon, tau, c0, num_iters, prox_newton_iters, tol_newton, LAPLACE_SPECTRAL=False, STOP_BY_TOL = STOP_BY_TOL)
     print_bars()
 
     # ---------------------------------------------------------------
 
-    fig, ax = plt.subplots(1,1, figsize = (8,6))
+    import matplotlib.gridspec as gridspec
+    fig = plt.figure(layout="constrained", figsize=(10, 6))
+
+
+    gs = gridspec.GridSpec(3, 3)
+
+
+    ax = fig.add_subplot(gs[:, :2])
+
+    ax1 = fig.add_subplot(gs[0, 2])
+    ax2 = fig.add_subplot(gs[1, 2])
+    ax3 = fig.add_subplot(gs[2, 2])
+
+
+
+    #fig, ax = plt.subplots(1,1, figsize = (8,6))
+
 
     colors_cn = ['cornflowerblue', 'royalblue','blue', 'black']
     colors_gd = ['lightcoral', 'mediumseagreen', 'red']
@@ -53,9 +69,29 @@ def convergence_comparison(WITH_CN_AS_REFERENCE = False):
                     ax.plot(torch.arange(1, len(energies_cn[ii])+1, 1), energies_cn[ii], label= fr"Crank Nicolson $N_{{fixpoint}}$ = {max_it_fixpoint} $|$ $dt$ = {dt}", linewidth = 3, color = colors_cn[ii])
                     ii += 1 
 
-    ax.plot(torch.arange(1, len(energies_gd)+1, 1), energies_gd, label="Gradient Descent", linewidth = 3, color =  "blue")
+
+
+
+    ax.plot(torch.arange(1, len(energies_gd)+1, 1), energies_gd, label="Gradient Descent", linewidth = 3, color =  "red")
     ax.plot(torch.arange(1, len(energies_prox)+1, 1), energies_prox, label="Proximal Gradient Descent", linewidth = 3, linestyle = ":", color = "black")
-    ax.plot(torch.arange(1, len(energies_nest)+1, 1), energies_nest, label="Nesterov Proximal GD", linewidth = 3, color = colors_gd[2])
+    ax.plot(torch.arange(1, len(energies_nest)+1, 1), energies_nest, label="Nesterov Proximal GD", linewidth = 3, color = "blue")
+
+
+    from utils.env_utils import main_colormap
+
+
+    ax1.imshow(u_gd.cpu(), cmap=main_colormap, origin="lower", extent=(0,1,0,1) )
+    ax2.imshow(u_prox.cpu(), cmap=main_colormap, origin="lower", extent=(0,1,0,1) )
+    ax3.imshow(u_nest.cpu(), cmap=main_colormap, origin="lower", extent=(0,1,0,1) )
+
+    ax1.axis("off")
+    ax2.axis("off")
+    ax3.axis("off")
+
+    ax1.set_title("GD")
+    ax2.set_title("Prox.GD")
+    ax3.set_title("Nest.GD")
+
 
     ax.set_xlabel("iterations $n$")
     ax.set_ylabel("energy value $E(u_n(x,y)$")
@@ -91,7 +127,7 @@ if __name__ == "__main__":
     # ---------------------------------------------------------------
 
     gridsize = 1.0
-    N = 64
+    N = 100
     epsilon = 1/100
     gamma = 1/2000
 
@@ -100,7 +136,7 @@ if __name__ == "__main__":
     from params.lipschitz import evaluate_lipschitz_constant
     alpha = tau = 0.1 #evaluate_lipschitz_constant(gamma, epsilon, N, gridsize=1.0, th=1.0)       # step size for plain GD &  # step size for prox-based methods 
             
-    ENERGY_STOP_TOL = 1e-8  # energy stopping tolerance if STOP_BY_TOL is true for methods 
+    ENERGY_STOP_TOL = 1e-12  # energy stopping tolerance if STOP_BY_TOL is true for methods 
     stop_limit = ENERGY_STOP_TOL
     tol = 1e-4
 

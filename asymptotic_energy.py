@@ -27,11 +27,12 @@ if __name__ == "__main__":
     LIVE_PLOT = False
     DATA_LOG = False
 
+
+    labyrinth_data_params = replace(labyrinth_data_params, N = 100)
+
     gridsize, N, th, epsilon, gamma = get_DataParameters(labyrinth_data_params)
 
-    #labyrinth_data_params = replace(labyrinth_data_params, gamma = gamma)
-
-    ngd_sim_params = replace(ngd_sim_params, num_iters = 5_000)
+    ngd_sim_params = replace(ngd_sim_params, num_iters = 20_000)
     
     print_bars()
     print(labyrinth_data_params)
@@ -60,7 +61,7 @@ if __name__ == "__main__":
             
             u, energies = gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, **asdict(labyrinth_data_params),**asdict(ngd_sim_params), **asdict(sim_config))
             
-            energies_ls.append( energies[-1] )
+            energies_ls.append( energies[-1])
 
     
     def algebraic_scaling(gamma):
@@ -80,7 +81,7 @@ if __name__ == "__main__":
     plt.plot(gamma_ls, algebraic_scaling(gamma_ls), linestyle = "--", label = "theor.")
 
     plt.xlabel("$\\gamma$")
-    plt.ylabel("$E_\\mathrm{last}$")
+    plt.ylabel("$E_\\mathrm{opt}$")
     
     #plt.yscale("log")
     

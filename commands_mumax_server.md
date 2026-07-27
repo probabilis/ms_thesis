@@ -14,7 +14,10 @@ tar -xvzf ...
 chmod +x mumax3
 
 # Adding to path
-export PATH="/path/to/extracted/mumax3:$PATH"
+export PATH="/workspace/mumax3.12_linux_cuda12.9:$PATH"
+echo 'export PATH="/workspace/mumax3.12_linux_cuda12.9:$PATH"' >> ~/.bashrc
+
+cp mumax3 /usr/local/bin
 
 # Applying changes
 source ~/.bashrc
@@ -33,6 +36,7 @@ watch -n 1 nvidia-smi
 
 # download files
 
-ssh root@213.173.110.147 -p 17326 -i ~/.ssh/id_ed25519
+ssh 8r0ja8kgy438n0-64411cc3@ssh.runpod.io -i ~/.ssh/id_ed25519
+ssh root@213.192.2.124 -p 40066 -i ~/.ssh/id_ed25519
 
-scp -r -P 17326 -i ~/.ssh/id_ed25519 root@213.173.110.147:/workspace/software ./runpod_server
+scp -r -P 40066 -i ~/.ssh/id_ed25519 root@213.192.2.124:~/direct_mx/mumax_grid_runs ./runpod_server

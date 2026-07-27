@@ -26,6 +26,7 @@ def evaluate_lipschitz_constant(gamma, eps, N, gridsize, th = 1.0, DEBUG = False
     # 2) Fourier Multiplier Term
     sigma_hat = fourier_multiplier(th * k).to(dtype_real).to(device)
     # Nonlocal operator norm
+    print("sigma", sigma_hat)
     L_fouriermult = torch.max(torch.abs(sigma_hat))
 
     # 3) Double Well term
@@ -51,4 +52,4 @@ def evaluate_lipschitz_constant(gamma, eps, N, gridsize, th = 1.0, DEBUG = False
 
 if __name__ == "__main__":
     print("Lipschitz constant test: ")
-    evaluate_lipschitz_constant(gamma = 0.002, eps = 0.01, N = 200, gridsize = 1.0, DEBUG=True)
+    evaluate_lipschitz_constant(gamma = 0.002, eps = 0.01, N = 100, gridsize = 1.0, DEBUG=True)

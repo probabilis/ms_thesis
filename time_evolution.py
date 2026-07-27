@@ -12,6 +12,7 @@ from utils.pattern_formation import initialize_u0_random
 from params.opt_params import labyrinth_data_params, get_DataParameters, get_SimulationParamters, gd_sim_params, sim_config
 
 from optimization.gradient_descent import gradient_descent
+from spectrum_analysis import radial_wavelength_spectrum
 
 # ---------------------------------------------------------------
 """
@@ -42,16 +43,13 @@ def plot_pdf_heatmap(u_ls, energies, xlim=(-1.1, 1.1), n_x=200):
         extent=[0, len(u_ls)-1, xlim[0], xlim[1]],
         cmap = main_colormap,
     )
-    #plt.colorbar(im,ax=axs[0], label=r"$p_t(u)$")
-    axs[0].set_ylabel(r"$u^{(ij)}_n$")
-    
-    axs[0].set_title("PDF flow during GD optimization")
 
-    axs[1].set_ylabel("energy value $E[u_n(x,y)]$")
+    #fig.colorbar(im,ax=axs[0], label=r"$\\mathcal{N}(u)$")
+    axs[0].set_ylabel("$\\mathcal{N}[u^{(ij)}_n]$")
+    axs[1].set_ylabel("$E[u_n(x,y)]$")
     axs[1].plot(history["E_grad"], label="$E_{\\nabla}$")
     axs[1].plot(history["E_dw"], label="$E_{W}$")
     axs[1].plot(history["E_fm"], label="$E_{\\mathcal{F}}$")
-
     axs[1].set_xlabel("iterator $n$")
 
     axs[1].set_yscale('log')
@@ -99,7 +97,7 @@ if __name__ == "__main__":
     DATA_LOG = False
     
     N = 200
-    num_iters_max = 1000
+    num_iters_max = 900
     gamma = 0.002
 
     labyrinth_data_params = replace(labyrinth_data_params, N = N, gamma = gamma)
@@ -116,10 +114,10 @@ if __name__ == "__main__":
     print(sim_config)
     print_bars()    
 
-    SHOW_PLOT = False
+    SHOW_PLOT = True
 
-    PDF_LINE_PLOT = True
-    PDF_HEATMAP_PLOT = True
+    PDF_LINE_PLOT = False # not used in thesis
+    PDF_HEATMAP_PLOT = False
     SUMMARY = True
 
     if PDF_LINE_PLOT:
@@ -152,7 +150,6 @@ if __name__ == "__main__":
             plt.show()
             plt.close()
 
-
     if SUMMARY:
         u_ls, history = gradient_descent(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, **asdict(labyrinth_data_params),**asdict(gd_sim_params), **asdict(sim_config), SAVE_U_HISTORY=100)    
         
@@ -160,7 +157,7 @@ if __name__ == "__main__":
 
         axs = axs.ravel()
 
-        for ii, u in enumerate( u_ls[0:-1] ):
+        for ii, u in enumerate( u_ls ):
 
             axs[2*ii].imshow(u.cpu().numpy(), cmap=main_colormap, extent=(0,1,0,1))
             #axs[2*ii].set_box_aspect(1)
@@ -192,22 +189,20 @@ if __name__ == "__main__":
 
         fig, axs = plt.subplots(2, 2, figsize = (10,10) )
 
-        axs[0, 0].imshow(u_ls[-1].cpu().numpy(), cmap=main_colormap, origin="lower", extent=(0,1,0,1) )    
+        im0 = axs[0, 0].imshow(u_ls[-1].cpu().numpy(), cmap=main_colormap, origin="lower", extent=(0,1,0,1) )    
+
         axs[0, 0].set_box_aspect(1)
         axs[0, 0].set_xlabel("$x$")
         axs[0, 0].set_ylabel("$y$")
         axs[0, 0].set_title(rf"$u_{{n={num_iters_max}}}(x,y)$")
 
-        fftu = torch.fft.fft2(u_ls[-1])
-        real_fftu = torch.fft.fftshift(fftu)
-        real_fftu = torch.abs(real_fftu)
-
-        axs[0, 1].imshow(real_fftu, cmap = sub_colormap, origin = "lower")
+        results = radial_wavelength_spectrum(u, gridsize/N)
+        im1 = axs[0, 1].imshow(torch.log1p(results["S"]).cpu(), cmap=sub_colormap, origin="lower", extent=(-N//2,N//2,-N//2,N//2))
+        
         axs[0, 1].set_box_aspect(1)
         axs[0, 1].set_xlabel("$k_x$")
         axs[0, 1].set_ylabel("$k_y$")
 
-        #axs[0, 1].set_title(rf"\\mathrm{{log}}$(1 + \\hat{{u}_{shift})$")
         axs[0, 1].set_title(rf"$\mathcal{{F}}[u_{{n={num_iters_max}}}(x,y)]$")
 
         axs[1, 0].loglog(history["E_total"], label = "$E_{total}$")
@@ -220,7 +215,7 @@ if __name__ == "__main__":
 
         for ii in range(2):
             axs[1, ii].set_xlabel("iterator $n$")
-            axs[1, ii].set_ylabel("energy value $E[u_n(x,y)]$")
+            axs[1, ii].set_ylabel("$E[u_n(x,y)]$")
             axs[1, ii].grid(color = "gray")
             axs[1, ii].grid(color = "gray")
 

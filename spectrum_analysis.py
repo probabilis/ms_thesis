@@ -25,7 +25,7 @@ def radial_wavelength_spectrum(
     plot: bool = False,
 ):
     """
-    Compute radial average of a 2D FFT spectrum and convert frequency to wavelength
+    computing radial average of a 2D FFT spectrum and convert frequency to wavelength for spectrum analysis
     """
 
     if u.ndim != 2:
@@ -41,20 +41,19 @@ def radial_wavelength_spectrum(
     ftu = torch.fft.fft2(u, norm="ortho")
     Fshift = torch.fft.fftshift(ftu)
 
-    # Spectrum
+    # spectrum
     if use_power:
         S = torch.abs(Fshift) ** 2
     else:
         S = torch.abs(Fshift)
-
-    # Frequency coordinates (cycles per unit length)
-    fx = torch.fft.fftshift(torch.fft.fftfreq(Nx, d=dx)).to(device)
+    
+    fx = torch.fft.fftshift(torch.fft.fftfreq(Nx, d=dx)).to(device) # frequency coordinates (cycles per unit length)
     fy = torch.fft.fftshift(torch.fft.fftfreq(Ny, d=dx)).to(device)
 
     FX, FY = torch.meshgrid(fx, fy, indexing="ij")
     KR = torch.sqrt(FX**2 + FY**2)   # radial frequency
 
-    # Radial bins
+    # radial bins
     k_max = KR.max().item()
     if nbins is None:
         nbins = min(Nx, Ny) // 2
@@ -65,7 +64,7 @@ def radial_wavelength_spectrum(
     profile = torch.zeros(nbins, device=device)
     counts = torch.zeros(nbins, device=device)
 
-    # Bin by radius
+    # binning by radius
     for i in range(nbins):
         mask = (KR >= bin_edges[i]) & (KR < bin_edges[i + 1])
         c = mask.sum()
@@ -73,7 +72,7 @@ def radial_wavelength_spectrum(
             profile[i] = S[mask].mean()
             counts[i] = c
 
-    # Ignore zero-frequency / DC bin when searching for characteristic scale
+    # ignoring zero-frequency / DC bin when searching for characteristic scale
     valid = (k_centers > eps) & (counts > 0)
     if valid.sum() == 0:
         raise ValueError("No valid nonzero radial frequency bins found")
@@ -83,6 +82,9 @@ def radial_wavelength_spectrum(
 
     peak_idx = torch.argmax(p_valid)
     k_peak = k_valid[peak_idx].item()
+
+    k_std = torch.std(p_valid)
+
     wavelength_peak = 1.0 / k_peak
 
     wavelength = torch.full_like(k_centers, float("inf"))
@@ -97,11 +99,31 @@ def radial_wavelength_spectrum(
         "wavelength_peak": wavelength_peak,
         "Fshift": Fshift.cpu(),
         "S": S.cpu(),
+        "k_delta" : k_std.item()
     }
 
 
     if plot:
-        pass
+        fig, axs = plt.subplots(1, 3, figsize=(10, 6))
+
+        im0 = axs[0].imshow(u.cpu(), cmap=main_colormap, origin="lower")
+        axs[0].set_title("$u(x, y)$")
+        plt.colorbar(im0, ax=axs[0], fraction=0.046, pad=0.04)
+
+        im1 = axs[1].imshow(torch.log1p(results["S"]), cmap=sub_colormap, origin="lower")
+        axs[1].set_title("$\\log(1 + S)$")
+        plt.colorbar(im1, ax=axs[1], fraction=0.046, pad=0.04)
+
+        valid_profile = counts > 0
+        axs[2].loglog(results["k"][valid_profile.cpu()], results["profile"][valid_profile.cpu()], lw=2)
+        axs[2].axvline(k_peak, linestyle="--", label=f"$k^* \\approx {k_peak:.3g}$")
+        axs[2].set_xlabel("$k$")
+        axs[2].set_ylabel("Radial mean intensity")
+        axs[2].grid(color="gray")
+        axs[2].legend(loc="lower left")
+
+        plt.tight_layout()
+        plt.show()
 
     return results
 
@@ -139,28 +161,41 @@ if __name__ == "__main__":
     FREQUENCY_SWEEP = False
 
     if SINGLE_RUN:
-        fig, axs = plt.subplots(1, 3, figsize = (10,6))
-        im0 = axs[0].imshow(u.cpu(), cmap=main_colormap, origin="lower", extent=(0,1,0,1) )
-        axs[0].set_title(rf"$u_{{n={num_iters_max}}}(x,y)$")
-        plt.colorbar(im0, ax=axs[0], fraction=0.046, pad=0.04)
-        im1 = axs[1].imshow(torch.log1p(results["S"]).cpu(), cmap=sub_colormap, origin="lower", extent=(-N//2,N//2,-N//2,N//2)) # 
-        axs[1].set_title("$\\mathrm{log}(1 + \\hat{u}^{shift}_n)$")
-        #axs[1].set_title(rf"$\mathcal{{F}}[u_{{n={num_iters_max}}}(x,y)]$")
-        plt.colorbar(im1, ax=axs[1], fraction=0.046, pad=0.04)
 
-        axs[2].loglog(results["k"], results["profile"], lw=2)
+        fig = plt.figure(layout="constrained", figsize=(10, 6))
+
+        ax1 = plt.subplot(2, 2, 1)
+        ax2 = plt.subplot(2, 2, 3)
+        # third Axes that spans both rows in second column:
+        ax3 = plt.subplot(2, 2, (2, 4))
+        
+        im1 = ax1.imshow(u.cpu(), cmap=main_colormap, origin="lower", extent=(0,1,0,1) )
+
+        ax1.set_xlabel("$x$")
+        ax1.set_ylabel("$y$")
+        ax1.set_title(rf"$u_{{n={num_iters_max}}}(x,y)$")
+        fig.colorbar(im1, ax=ax1, fraction=0.046, pad=0.04)
+
+
+        im2 = ax2.imshow(torch.log1p(results["S"]).cpu(), cmap=sub_colormap, origin="lower", extent=(-N//2,N//2,-N//2,N//2)) # 
+        ax2.set_title(rf"$\mathcal{{F}}[u_{{n={num_iters_max}}}(x,y)]$")
+        fig.colorbar(im2, ax=ax2, fraction=0.046, pad=0.04)
+
+        ax2.set_xlabel("$k_x$")
+        ax2.set_ylabel("$k_y$")
+
+
+        ax3.loglog(results["k"], results["profile"], lw=2)
         k_peak = results["k_peak"]
         wavelength_peak = results["wavelength_peak"]
-
-        axs[2].axvline(k_peak, linestyle="--", label=f"$k^* \\approx {k_peak:.3g}$")
-        axs[2].set_xlabel("$k$")
-        axs[2].set_ylabel("Radial mean intensity")
+        k_delta = results["k_delta"]
+        ax3.axvline(k_peak, linestyle="--", label=f"$k^* \\approx {k_peak:.3g}$", color = "red")
+        ax3.set_xlabel("$|k|$")
+        ax3.set_ylabel("Radial mean intensity")
+        ax3.legend(loc = "lower left")
+        ax3.grid("gray")
         
-        #axs[2].set_title(f"$\\lambda^* \\approx {wavelength_peak:.3g}$")
-        #axs[2].set_xscale("log")
-        axs[2].legend(loc = "lower left")
-        axs[2].grid("gray")
-        plt.tight_layout()
+        #plt.tight_layout()
         plt.savefig(FOLDER_PATH / "spectrum_analysis.png", dpi = 300)
         plt.show()
 

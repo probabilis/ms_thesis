@@ -34,7 +34,6 @@ def grid_sweep_over_lambdas_and_gammas(exp_data_params, ngd_sim_params, SIMULATE
     recording = args.recording
 
     INPUT_PATH = PATHS.BASE_EXPDATA
-    INPUT_FILE_PATH = INPUT_PATH / f"{dataset}/csv/mcd_slice_{recording}.csv"
 
     # ---------------------------------------------------------------
 
@@ -46,7 +45,7 @@ def grid_sweep_over_lambdas_and_gammas(exp_data_params, ngd_sim_params, SIMULATE
     OUTPUT_PATH = PATHS.BASE_EXPDATA / dataset / "opt" / recording 
     Path(OUTPUT_PATH).mkdir(parents=True, exist_ok=True)
 
-    u_exp = read_csv(INPUT_FILE_PATH, PLOT = False)
+    u_exp = read_csv(INPUT_PATH / f"{dataset}" / "csv", recording, PLOT = False)
 
     if u_exp.shape[0] != u_exp.shape[1]:
         raise ValueError("Experimental data should be quadratic (NxN tensor).")
@@ -68,7 +67,7 @@ def grid_sweep_over_lambdas_and_gammas(exp_data_params, ngd_sim_params, SIMULATE
 
     plotting_style()
     
-    fig, axs = plt.subplots( len(gamma_ls), 2 * len(_lambda_ls), figsize = (6 * len(_lambda_ls), 3 * len(gamma_ls) ))
+    fig, axs = plt.subplots( len(gamma_ls), 2 * len(_lambda_ls), figsize = (6.5 * len(_lambda_ls), 3.0 * len(gamma_ls) ))
 
     for kk, _lambda in enumerate(_lambda_ls):
         print("Lambda: ", _lambda)
@@ -103,7 +102,7 @@ def grid_sweep_over_lambdas_and_gammas(exp_data_params, ngd_sim_params, SIMULATE
             axs[ii, 2*kk + 1].set_box_aspect(1)
             
             if ii == 0:
-                axs[ii, 2*kk + 1].set_title(f"$\\Delta E < {ENERGY_STOP_TOL}$")
+                axs[ii, 2*kk + 1].set_title(f"$\\Delta E < \\kappa$")
             
             ymin, ymax = axs[ii, 2*kk + 1].get_ylim()
             xmin, xmax = axs[ii, 2*kk + 1].get_xlim()
@@ -114,7 +113,7 @@ def grid_sweep_over_lambdas_and_gammas(exp_data_params, ngd_sim_params, SIMULATE
             print_bars()
         
 
-    #fig.tight_layout()
+    #
     fig.canvas.draw()  # ensures positions are compute
     for kk, _lambda in enumerate(_lambda_ls):
         ax_left  = axs[0, 2*kk]
@@ -128,8 +127,9 @@ def grid_sweep_over_lambdas_and_gammas(exp_data_params, ngd_sim_params, SIMULATE
 
         title = f"$\\lambda = {_lambda}$"
 
-        fig.text(x_center, y_top, title, ha="center", va="bottom", fontsize=14)
-        
+        fig.text(x_center, y_top, title, ha="center", va="bottom", fontsize=16)
+
+    #fig.tight_layout()
     plt.savefig(OUTPUT_PATH / f"recording={recording}_num-iters={num_iters}.png", dpi = 300)
 
 

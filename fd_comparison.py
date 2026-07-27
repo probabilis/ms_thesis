@@ -1,14 +1,15 @@
+import numpy as np
 import matplotlib.pyplot as plt
 from dataclasses import asdict, replace
 
 from utils.env_utils import PATHS, print_bars, get_args, plotting_style, plotting_schematic, log_data, main_colormap
 from utils.pattern_formation import initialize_u0_random
 
-from params.opt_params import labyrinth_data_params, sim_config, get_DataParameters, get_SimulationParamters
+from params.opt_params import labyrinth_data_params, sim_config, gd_sim_params, get_DataParameters, get_SimulationParamters
 from params.opt_params import pgd_sim_params as ngd_sim_params
 
 from optimization.gd_nesterov import gradient_descent_nesterov
-
+from optimization.gradient_descent import gradient_descent
 
 
 
@@ -35,7 +36,7 @@ if __name__ == "__main__":
     print(ngd_sim_params)
     print_bars()
 
-    _types = ["Finite Differences / PBC", "Finite Differences / Von Neumann", "Spectral method"]
+    _types = ["Finite differences / pbc", "Finite differences / obc", "Spectral method"]
     PBC_ls = [True, False, True]
 
     if SINGLE_COMPARISON:
@@ -45,15 +46,12 @@ if __name__ == "__main__":
                 sim_config = replace(sim_config, LAPLACE_SPECTRAL = True)
             
             u, energies = gradient_descent_nesterov(u0, LIVE_PLOT, DATA_LOG, FOLDER_PATH, **asdict(labyrinth_data_params),**asdict(ngd_sim_params), **asdict(sim_config), PBC = PBC_ls[ii])
-            
-            axs[ii, 0].imshow(u, cmap = main_colormap)
-            if ii == 0:
-                axs[ii, 0].set_title(f"La'Place: {_types[ii]}")
-            else:
-                axs[ii, 0].set_title(f"{_types[ii]}")
 
-            axs[ii, 1].loglog(energies)
-            axs[ii, 1].hlines(energies[-1],1,len(energies), label = f"$E_\\mathrm{{last}} = {energies[-1]:.3f}$", color = "black", linestyle = ":")
+            axs[ii, 0].imshow(u, cmap = main_colormap)
+            axs[ii, 0].set_title(f"{_types[ii]}")
+
+            axs[ii, 1].loglog(np.arange(1,len(energies)+1), energies)
+            axs[ii, 1].hlines(energies[-1],1, len(energies), label = f"$E_\\mathrm{{opt}} = {energies[-1]:.3f}$", color = "black", linestyle = ":")
             if ii == 0:
                 axs[ii, 1].set_title("Energy evolution")
 

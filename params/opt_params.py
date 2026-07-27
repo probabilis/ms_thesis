@@ -129,5 +129,5 @@ c0 = 9/32)              # double well constant
 sim_config = SimulationConfig(
     LAPLACE_SPECTRAL = False,
     STOP_BY_TOL = True,
-    ENERGY_STOP_TOL = 1e-14
+    ENERGY_STOP_TOL = 1e-12
 )

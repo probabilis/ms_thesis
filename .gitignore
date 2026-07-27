@@ -5,4 +5,5 @@ data/**
 __pycache__/**
 oommf_tacofebmgo/**
 oommf/**
-mumax/**
+mumax/data/**
+ubermag/**

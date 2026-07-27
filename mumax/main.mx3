@@ -1,0 +1,60 @@
+// ============================================================
+// Minimal MuMax3 proofing run
+// Intended to reproduce thin-film Ta/CoFeB/MgO formation
+// ============================================================
+
+OutputFormat = {cfg.output_format}
+
+// ---------- Mesh ----------
+SetGridSize({nx}, {ny}, 1)
+SetCellSize({cfg.dx:.16g}, {cfg.dy:.16g}, {t:.16g})
+SetPBC({cfg.pbc_x}, {cfg.pbc_y}, 0)
+
+// ---------- Material ----------
+Msat = {Ms:.16g}
+Aex  = {A:.16g}
+Ku1  = {Ku:.16g}
+anisU = vector(0, 0, 1)
+
+// ---------- External field ----------
+B_ext = vector(0, 0, 0)
+
+// ---------- Solver ----------
+MinimizeWallClockTime = {cfg.minimize_wallclock_s}
+MinimizerStop = {cfg.minimizer_stop:.6g}
+MinimizerSamples = {cfg.minimizer_samples}
+
+// ---------- Initial condition ----------
+// This is closest to your successful OOMMF random-start runs.
+m = randomMagSeed({cfg.random_seed})
+
+// Save initial state to verify that plotting works.
+SaveAs(m, "m_initial")
+SaveAs(m.Comp(2), "mz_initial")
+
+// ---------- Table output ----------
+TableAdd(E_exch)
+TableAdd(E_anis)
+TableAdd(E_demag)
+TableAdd(E_Zeeman)
+TableAdd(E_total)
+TableAdd(maxTorque)
+TableAdd(m.Comp(2))
+
+print("t_m=", {t:.16g})
+print("A_J_per_m=", {A:.16g})
+print("Keff_J_per_m3=", {Keff:.16g})
+print("Ku_J_per_m3=", {Ku:.16g})
+print("Ms_A_per_m=", {Ms:.16g})
+print("Nx=", {nx})
+print("Ny=", {ny})
+
+// ---------- Minimize ----------
+ok := minimize()
+print("minimize_converged=", ok)
+TableSave()
+
+// ---------- Save final fields ----------
+SaveAs(m, "m_final")
+SaveAs(m.Comp(2), "mz_final")
+TableSave()

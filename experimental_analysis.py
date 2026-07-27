@@ -223,16 +223,17 @@ def TaCoFeBMgO_stack_reduced_image_series():
 
 
     domain_pattern_lengths = np.zeros(FILE_AMOUNT)
+    domain_pattern_lengths_unc = np.zeros(FILE_AMOUNT)
     INPUT_PATH = PATHS.BASE_EXPDATA
     
     THRESHOLD = 0.2
     # ---------------------------------------------------------------
 
-    fig = plt.figure(figsize=(16, 12), constrained_layout=True)
+    fig = plt.figure(figsize=(14, 14), constrained_layout=True)
     gs = fig.add_gridspec(
         nrows=5,
         ncols=4,
-        height_ratios=[1.0, 1.0, 1.0, 1.0, 1.0],
+        height_ratios=[1.0, 1.0, 1.0, 1.0, 2.0],
     )
 
 
@@ -254,19 +255,23 @@ def TaCoFeBMgO_stack_reduced_image_series():
 
     #fig, axs = plt.subplots( 3, FILE_AMOUNT, figsize = (12,8) )
 
+    self_picked_gammas = []
+
     for ii, OPT_FILE in enumerate( file_indices ):
         
         recording = f"00{OPT_FILE}"
-        INPUT_FILE_PATH = INPUT_PATH / f"{dataset}/csv/mcd_slice_{recording}.csv"
+        INPUT_FILE_PATH = INPUT_PATH / f"{dataset}" / "csv"
         OUTPUT_PATH = PATHS.BASE_EXPDATA / dataset / "opt" / recording
         df = pd.read_csv(OUTPUT_PATH / f"ranking.csv", index_col = 0)
 
-        u_exp = read_csv(INPUT_FILE_PATH, PLOT = False)
+        u_exp = read_csv(INPUT_FILE_PATH, recording, PLOT = False)
 
         self_picked_new_index = self_picked_indices[ii]
         self_picked_gamma = df.iloc[self_picked_new_index]["gamma"]
         self_picked_lambda = df.iloc[self_picked_new_index]["lambda"]
         _ , self_u_sim = read_sim_dat_from_csv(OUTPUT_PATH, exp_data_params.N, num_iters, self_picked_gamma, exp_data_params.epsilon, self_picked_lambda)    
+
+        self_picked_gammas.append(self_picked_gamma)
 
         axs[0, ii].imshow(u_exp, cmap = "gray", origin="lower", extent=(0,reduced_exp_image_width*1e6,0,reduced_exp_image_width*1e6))
         axs[0, ii].set_xlabel("$\\mu\\mathrm{m}$")
@@ -278,8 +283,19 @@ def TaCoFeBMgO_stack_reduced_image_series():
         axs[1, ii].set_title(f"$\\gamma = {self_picked_gamma}$ \n $\\lambda = {self_picked_lambda}$")
 
         results = radial_wavelength_spectrum(self_u_sim, exp_data_params.gridsize/exp_data_params.N, plot = False)
+
         domain_pattern_length = results["wavelength_peak"]/2 * reduced_exp_image_width * 1e6
-        axs[2, ii].set_title(f"$D_p = {domain_pattern_length:.4g}$" + "$\\mu\\mathrm{m}$")
+        domain_pattern_length_unc = 1/(results["k_delta"]*2) * reduced_exp_image_width * 1e6 # uses standard deviation from radial intensity profile, sloppy but IDONT WAnT anymore xd
+
+
+        domain_pattern_length_unc = np.round(domain_pattern_length_unc, 1) # round for 1 decimal
+        if domain_pattern_length_unc < 1e-12:
+            domain_pattern_length_unc = 0.1 # save 
+
+        print("Dp", domain_pattern_length)
+        print("Delta Dp", domain_pattern_length_unc)
+
+        axs[2, ii].set_title(f"$D_p = ({domain_pattern_length:.2g} \pm {domain_pattern_length_unc:.1f})$" + "$\\mu\\mathrm{m}$")
 
         W_thick = torch.where(torch.abs(self_u_sim) > THRESHOLD, -1, self_u_sim)
         axs[2, ii].imshow(W_thick.float(), cmap = "binary", origin="lower", extent=(0,1,0,1) )
@@ -291,13 +307,58 @@ def TaCoFeBMgO_stack_reduced_image_series():
                 axs[jj, ii].axes.get_yaxis().set_ticks([])
 
         domain_pattern_lengths[ii] = domain_pattern_length
+        domain_pattern_lengths_unc[ii] = domain_pattern_length_unc
 
 
-    from domain_width_theory import t_nm, Dp_um, t_fit_nm, Dp_fit
+    print(domain_pattern_lengths_unc)
+
+    t_nm = np.array([1.30, 1.33, 1.36, 1.40])  # nm
+
+    t = t_nm * 1e-9      # m
+    Dp = domain_pattern_lengths * 1e-6    # m
+
+    # initial guesses
+    C0 = 1e-9       # m, prefactor scale
+    B0 = 1e-12       # m, exponential length scale
+
+    from scipy.optimize import curve_fit
+    from domain_width_theory import domain_period_model # test script
+
+    popt, pcov = curve_fit(
+        domain_period_model,
+        t,
+        Dp,
+        p0=[C0, B0],
+        #maxfev=10000
+    )
+
+    C_fit, B_fit = popt
+    C_err, B_err = np.sqrt(np.diag(pcov))
+
+    print("Fit results:")
+    print(f"C = {C_fit:.6e} ± {C_err:.6e} m")
+    print(f"B = {B_fit:.6e} ± {B_err:.6e} m")
+
+    print()
+    print("Equivalent:")
+    print(f"C = {C_fit * 1e9:.6f} nm")
+    print(f"B = {B_fit * 1e9:.6f} nm")
 
 
-    ax_bottom.scatter(t_nm, Dp_um, label="data", zorder=5, color = "black")
-    ax_bottom.plot(t_fit_nm, Dp_fit * 1e6, label="fit")
+    t_fit_nm = np.linspace(t_nm.min(), t_nm.max(), 300)
+    t_fit = t_fit_nm * 1e-9
+    Dp_fit = domain_period_model(t_fit, C_fit, B_fit)
+
+    print(domain_pattern_lengths)
+    print(domain_pattern_lengths_unc) 
+
+    #ax_bottom.set_yscale("log")
+    
+    ax_bottom.plot(t_fit_nm, Dp_fit * 1e6, label="fit", linewidth = 2)
+    ax_bottom.errorbar(t_nm, domain_pattern_lengths, yerr=domain_pattern_lengths_unc, label='data', color = "red", fmt=' ', elinewidth=2)
+    
+    #ax_bottom.scatter(t_nm, Dp_um, label="data", zorder=5, color = "black")
+    
     ax_bottom.set_xlim(1.29, 1.41)
     ax_bottom.set_xlabel(r"$\delta~[\mathrm{nm}]$")
     ax_bottom.set_ylabel(r"$D_\mathrm{P}~[\mu\mathrm{m}]$")
@@ -305,12 +366,9 @@ def TaCoFeBMgO_stack_reduced_image_series():
     ax_bottom.legend()
     ax_bottom.grid(color = "gray")
 
-
-    print(domain_pattern_lengths)
     fig.tight_layout()
     fig.savefig(PATHS.BASE_EXPDATA / dataset / "opt" / f"experimental_analysis_reduced_analysis.png" , dpi = 300)
     plt.show()
-
 
 
 if __name__ == "__main__":

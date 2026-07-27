@@ -11,6 +11,8 @@ def wall_mask_from_labels(L):
     same implementation functionality as but way faster: 
 
     H, W = L.shape
+    W_mask = torch.zeros_like(L, dtype=torch.bool)
+
     # check each cell against its left neighbor
     for i in range(H):
         for j in range(1, W):

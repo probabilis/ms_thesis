@@ -119,7 +119,7 @@ def laplacian_neumann(u: torch.Tensor, dx: float) -> torch.Tensor:
     lap[-1, 0] = 2 * u[-2, 0] + 2 * u[-1, 1] - 4.0 * u[-1, 0]
     lap[-1, -1] = 2 * u[-2, -1] + 2 * u[-1, -2] - 4.0 * u[-1, -1]
 
-    return lap / (dx ** 2)
+    return lap / dx**2
 
 
 # ------------------------------------------------------------------
@@ -208,17 +208,18 @@ def grad_fd_neumann_centered(u: torch.Tensor, dx: float):
     """
     gradient implemented with open boundary (for von neumann)
     """
-    uy = torch.zeros_like(u)
     ux = torch.zeros_like(u)
+    uy = torch.zeros_like(u)
 
-    uy[1:-1, :] = (u[2:, :] - u[:-2, :]) / (2*dx) # 2*dx spacing here
-    ux[:, 1:-1] = (u[:, 2:] - u[:, :-2]) / (2*dx)
+    ux[:, 1:-1] = (u[:, 2:] - u[:, :-2]) /(2*dx) # mid-point stencial therefor 2*dx spacing here
+    uy[1:-1, :] = (u[2:, :] - u[:-2, :]) /(2*dx)
 
     neuman_normal = 0.0  # one-sided near boundary (Neumann normal is 0)
-    uy[0, :]  = neuman_normal
-    uy[-1, :] = neuman_normal
     ux[:, 0]  = neuman_normal
     ux[:, -1] = neuman_normal
+    uy[0, :]  = neuman_normal
+    uy[-1, :] = neuman_normal
+
     return ux, uy
 
 
@@ -226,8 +227,8 @@ def grad_fd_pbc(u: torch.Tensor, dx : float):
     """
     gradient implemented with PBC 
     """
-    uy = torch.zeros_like(u)
     ux = torch.zeros_like(u)
+    uy = torch.zeros_like(u)
     
     ux = ( u - torch.roll(u, 1, 0) ) / dx
     uy = ( u - torch.roll(u, 1, 1) ) / dx
